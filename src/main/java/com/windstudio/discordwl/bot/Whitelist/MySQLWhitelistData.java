@@ -12,21 +12,21 @@ import java.util.ArrayList;
 import java.util.Date;
 
 public class MySQLWhitelistData {
-    private final Main plugin;
+    public Main plugin;
     public MySQLWhitelistData(Main plugin) {
         this.plugin = plugin;
     }
     public boolean userPlayerExists(String playerNickname) {
         PreparedStatement preparedStatement = null; ResultSet resultSet = null;
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Whitelist") + " WHERE nickname=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Whitelist") + " WHERE nickname=?");
             preparedStatement.setString(1, playerNickname);
             resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
                 return true;
             }
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, resultSet);
         }
@@ -35,7 +35,7 @@ public class MySQLWhitelistData {
     public String getPlayerType(String condition, String conditionNew, String whatYouNeedExactly) {
         PreparedStatement preparedStatement = null; ResultSet resultSet = null;
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Whitelist") + " WHERE "+condition+"=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Whitelist") + " WHERE "+condition+"=?");
             preparedStatement.setString(1, conditionNew);
             resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
@@ -43,7 +43,7 @@ public class MySQLWhitelistData {
                 return gotYouNeedExactly;
             }
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, resultSet);
         }
@@ -51,18 +51,18 @@ public class MySQLWhitelistData {
     }
     public ArrayList<String> getPlayers() {
         PreparedStatement preparedStatement = null; ResultSet resultSet = null;
+        ArrayList<String> array = new ArrayList<>();
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Whitelist") + " WHERE player_type=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Whitelist") + " WHERE player_type=?");
             preparedStatement.setString(1, "player");
             resultSet = preparedStatement.executeQuery();
-            ArrayList<String> array = new ArrayList<>();
             while (resultSet.next()) {
                 String name = resultSet.getString("nickname");
                 array.add(name);
             }
             return array;
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, resultSet);
         }
@@ -71,7 +71,7 @@ public class MySQLWhitelistData {
     public ArrayList<String> getAdministrators() {
         PreparedStatement preparedStatement = null; ResultSet resultSet = null;
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Whitelist") + " WHERE player_type=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Whitelist") + " WHERE player_type=?");
             preparedStatement.setString(1, "administrator");
             resultSet = preparedStatement.executeQuery();
             ArrayList<String> array = new ArrayList<>();
@@ -81,7 +81,7 @@ public class MySQLWhitelistData {
             }
             return array;
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, resultSet);
         }
@@ -92,13 +92,13 @@ public class MySQLWhitelistData {
         java.sql.Date converted = new java.sql.Date(date.getTime());
         SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("INSERT INTO " + getString("MySQL_TableName_Whitelist") +"(nickname, player_type, whitelist_date) VALUES (?, ?, ?)");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("INSERT INTO " + getString("Database.Settings.MySQL.TableName.Whitelist") +"(nickname, player_type, whitelist_date) VALUES (?, ?, ?)");
             preparedStatement.setString(1, playerNickname);
             preparedStatement.setString(2, playerType);
             preparedStatement.setString(3, format.format(converted));
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, null);
         }
@@ -106,11 +106,11 @@ public class MySQLWhitelistData {
     public void removePlayer(String condition, String placeholderSet) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("DELETE FROM " + getString("MySQL_TableName_Whitelist") +" WHERE " + condition +"=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("DELETE FROM " + getString("Database.Settings.MySQL.TableName.Whitelist") +" WHERE " + condition +"=?");
             preparedStatement.setString(1, placeholderSet);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, null);
         }
@@ -118,14 +118,14 @@ public class MySQLWhitelistData {
     public void updatePlayerInfo(String column, String newInformation, String condition, String placeholderSet) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("UPDATE " + getString("MySQL_TableName_Whitelist") +" SET " + column + "=" + newInformation +" WHERE " + condition +"=?");
+            preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("UPDATE " + getString("Database.Settings.MySQL.TableName.Whitelist") +" SET " + column + "=" + newInformation +" WHERE " + condition +"=?");
             preparedStatement.setString(1, placeholderSet);
             preparedStatement.executeUpdate();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         } finally {
             plugin.getPoolManager().close(null, preparedStatement, null);
         }
     }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
 }

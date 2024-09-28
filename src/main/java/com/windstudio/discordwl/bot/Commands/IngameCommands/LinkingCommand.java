@@ -41,7 +41,7 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
     private static Member target;
     private static Player player;
     private final JDA jda;
-    private final Main plugin;
+    public Main plugin;
 
     public LinkingCommand(Main plugin) {
         this.plugin=plugin;
@@ -53,19 +53,22 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) { // Command
-        if (getStringList("SettingsEnabled").contains("LINKING")) {
+        if (getStringList("Plugin.Settings.Enabled").contains("LINKING")) {
             if (!(sender instanceof Player)) {
                 sender.sendMessage(ColorManager.translate("&cOnly players can execute this command!"));
                 return true;
             }
-            console = Bukkit.getServer().getConsoleSender();
+            Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.InGameCommandUsedEvent event = new com.windstudio.discordwl.API.InGameCommandUsedEvent(sender, cmd.getName(), cmd);
+                        Bukkit.getServer().getPluginManager().callEvent(event);
+                    });
             player = (Player) sender;
             did = uuidIdMap.get(player.getUniqueId());
             if (did == null) {
                 sendMessage(sender, ColorManager.translate(plugin.getLanguageManager().get("LinkingStart")), new String[0]);
                 return true;
             }
-            target = jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).getMemberById(did);
+            target = jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getMemberById(did);
             plUUID = player.getUniqueId().toString();
             Name = player.getName();
             Discord = target.getUser().getName() + "#" + target.getUser().getDiscriminator();
@@ -79,9 +82,9 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
                     sendMessage(sender, ColorManager.translate(plugin.getLanguageManager().get("LinkingInvalidCode")), new String[0]);
                     return true;
                 }
-                Bukkit.getScheduler().runTaskAsynchronously(Main.getPlugin(), new Runnable() {
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
                     public void run() {
-                        switch (getString("DataBaseType")) {
+                        switch (getString("Database.Type")) {
                             case "SQLite":
                                 if (plugin.getClassManager().getUserdata().userProfileExists(plUUID)) {
                                     sendMessage(sender, ColorManager.translate(plugin.getLanguageManager().get("LinkingAlreadyLinked")), new String[0]);
@@ -98,9 +101,9 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
                 uuidCodeMap.remove(player.getUniqueId());
                 uuidIdMap.remove(player.getUniqueId());
                 verifiedmembers.add(player.getUniqueId());
-                Bukkit.getScheduler().runTaskAsynchronously(Main.getPlugin(), new Runnable() {
+                Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
                     public void run() {
-                        switch (getString("DataBaseType")) {
+                        switch (getString("Database.Type")) {
                             case "SQLite":
                                 plugin.getClassManager().getUserdata().createUserProfile(plUUID, Name, Discord, did);
                                 break;
@@ -110,33 +113,41 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
                         }
                     }
                 });
-                if (Main.plugin.getConfig().getString("LinkedRoleID") != null) {
-                    if (jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID")) != null) {
+                if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add"), "disable")) {
+                    if (jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add")) != null) {
                         try {
-                            Role verifiedRole = jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID"));
-                            jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).addRoleToMember(target, verifiedRole).queue();
+                            List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Add");
+                            for (String r : roleStringList) {
+                                if (jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(r) != null) {
+                                    jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).addRoleToMember(target, jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(r)).queue();
+                                }
+                            }
                         } catch (Exception e) {
-                            console.sendMessage(ColorManager.translate("&c > &fBot can't add role to user. Seems that user has higher role that bot!"));
+                            console.sendMessage(ColorManager.translate("&a › &fBot can't add role to user. Seems that user has higher role that bot!"));
                             player.sendMessage(ColorManager.translate("&cBot can't add you role!"));
                         }
                     }
                 }
-                if (!Objects.equals(Main.plugin.getConfig().getString("LinkedRemoveRoleID"), "notuse")) {
-                    if (jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID")) != null) {
+                if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Remove"), "disable")) {
+                    if (jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Remove")) != null) {
                         try {
-                            Role verifiedRemoveRole = jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID"));
-                            jda.getGuildById(Main.plugin.getConfig().getString("GuildID")).removeRoleFromMember(target, verifiedRemoveRole).queue();
+                            List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Remove");
+                            for (String r : roleStringList) {
+                                if (jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(r) != null) {
+                                    jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).removeRoleFromMember(target, jda.getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(r)).queue();
+                                }
+                            }
                         } catch (Exception e) {
-                            console.sendMessage(ColorManager.translate("&c > &fBot can't remove role from user. Seems that user has higher role that bot!"));
+                            console.sendMessage(ColorManager.translate("&a › &fBot can't remove role from user. Seems that user has higher role that bot!"));
                             player.sendMessage(ColorManager.translate("&cBot can't remove role from you!"));
                         }
                     }
                 }
-                if (getStringList("SettingsEnabled").contains("LINK_NAME_CHANGE")) {
+                if (getStringList("Plugin.Settings.Enabled").contains("LINKING_NAME_CHANGE")) {
                     try {
                         target.modifyNickname(Name).queue();
                     } catch (Exception e) {
-                            console.sendMessage(ColorManager.translate("&c > &fBot can't add role to user. Seems that user has higher role that bot!"));
+                            console.sendMessage(ColorManager.translate("&a › &fBot can't add role to user. Seems that user has higher role that bot!"));
                             sender.sendMessage(ColorManager.translate("&cBot can't modify your nickname!"));
                         }
                 }
@@ -149,13 +160,13 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
                             .ignore(ErrorResponse.UNKNOWN_USER, ErrorResponse.CANNOT_SEND_TO_USER));
                 });
                 sendMessage(sender, ColorManager.translate(plugin.getLanguageManager().get("LinkingLinkedMsg").replaceAll("%u", Discord)), new String[0]);
-                if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                    String mention = jda.getGuildById(getString("GuildID")).getMemberById(did).getAsMention();
+                if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                    String mention = jda.getGuildById(getString("Service.ServerID")).getMemberById(did).getAsMention();
                     String discord = jda.getUserById(did).getName() + "#" + jda.getUserById(did).getDiscriminator();
                     eb.setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
                     eb.setTitle(plugin.getLanguageManager().get("LinkingLogTitle"));
                     eb.setDescription(plugin.getLanguageManager().get("LinkingLogLinkedDescription").replaceAll("%u", mention).replaceAll("%d", discord).replaceAll("%p", player.getName()).replaceAll("%i", player.getUniqueId().toString()));
-                    jda.getGuildById(getString("GuildID")).getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID")).sendMessageEmbeds(eb.build()).queue(null, new ErrorHandler()
+                    jda.getGuildById(getString("Service.ServerID")).getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(eb.build()).queue(null, new ErrorHandler()
                             .ignore(ErrorResponse.UNKNOWN_CHANNEL));
                 }
                 return true;
@@ -205,6 +216,6 @@ public class LinkingCommand extends ListenerAdapter implements CommandExecutor, 
     public static List<UUID> getVerifiedmembers() {
         return verifiedmembers;
     }
-    public List<String> getStringList(String path) { return Main.plugin.getConfig().getStringList(path); }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public List<String> getStringList(String path) { return plugin.getConfig().getStringList(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
 }

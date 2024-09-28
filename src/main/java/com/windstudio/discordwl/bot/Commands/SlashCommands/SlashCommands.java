@@ -1,5 +1,7 @@
 package com.windstudio.discordwl.bot.Commands.SlashCommands;
 
+import com.windstudio.discordwl.API.Cause.ErrorCause;
+import com.windstudio.discordwl.API.Cause.LogsCause;
 import com.windstudio.discordwl.Main;
 import com.windstudio.discordwl.bot.Commands.IngameCommands.LinkingCommand;
 import com.windstudio.discordwl.bot.DataBase.SQLite.SQLite;
@@ -8,9 +10,10 @@ import com.windstudio.discordwl.bot.Manager.Plugin.ColorManager;
 import com.windstudio.discordwl.bot.Manager.Plugin.LanguageManager;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.Role;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorHandler;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -18,16 +21,18 @@ import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.requests.ErrorResponse;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -38,16 +43,47 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+
 public class SlashCommands extends ListenerAdapter implements Listener {
     private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor();
-    public ConsoleCommandSender console;
     private final Main plugin;
-    JDA jda = Main.getJDA();
     public SlashCommands(Main plugin) { this.plugin = plugin; }
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        // System.out.println(event.getName() + event.getOptions().toString()); // Debug
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            com.windstudio.discordwl.API.SlashCommandUsedEvent e = new com.windstudio.discordwl.API.SlashCommandUsedEvent(event.getMember(), event.getName(), event.getCommandId());
+            Bukkit.getServer().getPluginManager().callEvent(e);
+        });
         switch (event.getName()) {
             case "whitelist":
+                if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Admin"), "disable")) {
+                    try {
+                        List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Admin");
+                        for (String r : roleStringList) {
+                            if (event.getGuild().getRoleById(r) != null) {
+                                if (hasAtLeastRole(event.getMember(), event.getGuild(), roleStringList)) continue;
+                                plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
+                                plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
+                                plugin.getEmbedBuilder().setDescription(null);
+                                event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true)
+                                        .delay(Duration.ofSeconds(15))
+                                        .flatMap(InteractionHook::deleteOriginal)
+                                        .queue(null, new ErrorHandler()
+                                                .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                    com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                            event.getMember(),
+                                            event.getMember().getNickname(),
+                                            event.getChannel(),
+                                            ErrorCause.HAVE_NO_ROLE);
+                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                });
+                                return;
+                            }
+                        }
+                    } catch (Exception ex) {
+                        plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't add role to user. Either user have higher role that bot, either roleID isn't correct!"));
+                    }
+                }
                 OptionMapping typeOption = event.getOption("type");
                 OptionMapping nickOption = event.getOption("username");
                 if (typeOption == null) {
@@ -70,36 +106,111 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             return;
                         }
                         String NICK = nickOption.getAsString();
-                        if (!NICK.matches("^\\w{3,16}$") && getStringList("SettingsEnabled").contains("SLASHCOMMANDS_REGEX_CHECK")) {
-                            plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
-                            plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
-                            plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRegexErrorDescription"));
-                            event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true)
-                                    .delay(Duration.ofSeconds(15))
-                                    .flatMap(InteractionHook::deleteOriginal)
-                                    .queue(null, new ErrorHandler()
-                                            .ignore(ErrorResponse.UNKNOWN_MESSAGE));
-                            return;
+                        if (getStringList("Plugin.Settings.Enabled").contains("REGEX_CHECK")) {
+                            if (getStringList("Plugin.Settings.Enabled").contains("BEDROCK_SUPPORT") && !NICK.matches("^(["+getString("Plugin.Settings.BedrockSymbol")+"])?([a-zA-Z0-9_ ]{3,16})$")) {
+                                err(event);
+                            } else if (!NICK.matches("^\\w{3,16}$")) {
+                                err(event);
+                            }
                         }
                         OfflinePlayer p = Bukkit.getOfflinePlayer(NICK);
                         if (!p.isWhitelisted()) {
+                            backupWhitelistFile();
                             Bukkit.getScheduler().runTask(plugin, () -> p.setWhitelisted(true));
-                            if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
-                                Bukkit.getScheduler().runTaskAsynchronously(Main.getPlugin(), new Runnable() {
+                            if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
+                                Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
                                     public void run() {
                                         Date now = new Date();
-                                        switch (getString("DataBaseType")) {
+                                        switch (getString("Database.Type")) {
                                             case "SQLite":
                                                 plugin.getClassManager().getSqLiteWhitelistData().addPlayer(NICK, "player", now);
-                                                plugin.getData().save();
+                                                
                                                 break;
                                             case "MySQL":
                                                 plugin.getClassManager().getMySQLWhitelistData().addPlayer(NICK, "player", now);
-                                                plugin.getData().save();
+                                                
                                                 break;
                                         }
                                     } });
                             }
+                            if (event.getOption("user") != null) {
+                                OptionMapping userOption = event.getOption("user");
+                                Member Member = userOption.getAsMember();
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_CHANGE_NAME")) {
+                                    try {
+                                        EXECUTOR.schedule(() -> Member.modifyNickname(NICK).queue(),
+                                                1, TimeUnit.SECONDS);
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.UserNicknameChangedEvent event5 = new com.windstudio.discordwl.API.UserNicknameChangedEvent(
+                                                    Member,
+                                                    NICK,
+                                                    event.getChannel(),
+                                                    event.getMember().getNickname());
+                                            Bukkit.getServer().getPluginManager().callEvent(event5);
+                                        });
+                                    } catch (Exception ex) {
+                                        plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't change user's nickname. Seems that user has higher role that bot!"));
+                                    }
+                                }
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_ROLE_ADD")) {
+                                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Add"), "disable")) {
+                                        if (Member != null) {
+                                            try {
+                                                List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Whitelist.Add");
+                                                for (String r : roleStringList) {
+                                                    if (event.getGuild().getRoleById(r) != null) {
+                                                        if (hasRole(event.getMember(), event.getGuild(), event.getGuild().getRoleById(r).getId()))
+                                                            continue;
+                                                        event.getGuild().addRoleToMember(Member, event.getGuild().getRoleById(r)).queue();
+                                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                            com.windstudio.discordwl.API.UserRoleAddEvent event8 = new com.windstudio.discordwl.API.UserRoleAddEvent(
+                                                                    event.getMember(),
+                                                                    Member.getNickname(),
+                                                                    event.getChannel(),
+                                                                    event.getGuild().getRoleById(r));
+                                                            Bukkit.getServer().getPluginManager().callEvent(event8);
+                                                        });
+                                                    }
+                                                }
+                                            } catch (Exception ex) {
+                                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't add role to user. Either user have higher role that bot, either roleID isn't correct!"));
+                                            }
+                                        }
+                                    }
+                                }
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_ROLE_REMOVE")) {
+                                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Remove"), "disable")) {
+                                        if (Member != null) {
+                                            try {
+                                                if (event.getGuild().getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Remove")) != null) {
+                                                    List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Whitelist.Remove");
+                                                    for (String r : roleStringList) {
+                                                        if (event.getGuild().getRoleById(r) != null) {
+                                                            if (!hasRole(event.getMember(), event.getGuild(), event.getGuild().getRoleById(r).getId()))
+                                                                continue;
+                                                            event.getGuild().removeRoleFromMember(Member, event.getGuild().getRoleById(r)).queue();
+                                                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                                com.windstudio.discordwl.API.UserRoleRemoveEvent event8 = new com.windstudio.discordwl.API.UserRoleRemoveEvent(
+                                                                        event.getMember(),
+                                                                        Member.getNickname(),
+                                                                        event.getChannel(),
+                                                                        event.getGuild().getRoleById(r));
+                                                                Bukkit.getServer().getPluginManager().callEvent(event8);
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            } catch (Exception ex) {
+                                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't remove role from user. Either user have higher role that bot, either roleID isn't correct!"));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.UserWhitelistedEvent eve = new com.windstudio.discordwl.API.UserWhitelistedEvent(event.getOption("user").getAsMember(), NICK, event.getChannel());
+                                        Bukkit.getServer().getPluginManager().callEvent(eve);
+                                    });
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("SuccessEmbedColor")));
                             plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("SuccessTitle"));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistedSuccessful").replaceAll("%p", NICK));
@@ -108,14 +219,20 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE, ErrorResponse.INVALID_FORM_BODY));
-                            if (getStringList("SettingsEnabled").contains("LOGGING")) {
+                            if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                                if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
                                 String mention = event.getInteraction().getMember().getAsMention();
                                 String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
                                 plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
                                 plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("WhitelistLogEmbedTitle"));
                                 plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistSlashCommandAddLogEmbedDescription").replaceAll("%a", mention).replaceAll("%d", discord).replaceAll("%p", NICK));
-                                event.getGuild().getTextChannelById(getString("LogsChannelID")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
+                                event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
                                         .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                                    com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                            event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                            LogsCause.WHITELIST);
+                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                             }
                         } else {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
@@ -126,6 +243,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.ALREADY_WHITELISTED);
+                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                         }
                         break;
                     case "remove":
@@ -138,35 +263,110 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             return;
                         }
                         String NICKNAME = nickOption.getAsString();
-                        if (!NICKNAME.matches("^\\w{3,16}$") && getStringList("SettingsEnabled").contains("SLASHCOMMANDS_REGEX_CHECK")) {
-                            plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
-                            plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
-                            plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRegexErrorDescription"));
-                            event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true)
-                                    .delay(Duration.ofSeconds(15))
-                                    .flatMap(InteractionHook::deleteOriginal)
-                                    .queue(null, new ErrorHandler()
-                                    .ignore(ErrorResponse.UNKNOWN_MESSAGE, ErrorResponse.INVALID_FORM_BODY));
-                            return;
+                        if (getStringList("Plugin.Settings.Enabled").contains("REGEX_CHECK")) {
+                            if (getStringList("Plugin.Settings.Enabled").contains("BEDROCK_SUPPORT") && !NICKNAME.matches("^([" + getString("Plugin.Settings.BedrockSymbol") + "])?([a-zA-Z0-9_ ]{3,16})$")) {
+                                err(event);
+                            } else if (!NICKNAME.matches("^\\w{3,16}$")) {
+                                err(event);
+                            }
                         }
                         OfflinePlayer player = Bukkit.getOfflinePlayer(NICKNAME);
                         if (player.isWhitelisted()) {
+                            backupWhitelistFile();
                             Bukkit.getScheduler().runTask(plugin, () -> player.setWhitelisted(false));
-                            if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
-                                Bukkit.getScheduler().runTaskAsynchronously(Main.getPlugin(), new Runnable() {
+                            if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
+                                Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
                                     public void run() {
-                                        switch (getString("DataBaseType")) {
+                                        switch (getString("Database.Type")) {
                                             case "SQLite":
                                                 plugin.getClassManager().getSqLiteWhitelistData().removePlayer("nickname", NICKNAME);
-                                                plugin.getData().save();
+                                                
                                                 break;
                                             case "MySQL":
                                                 plugin.getClassManager().getMySQLWhitelistData().removePlayer("nickname", NICKNAME);
-                                                plugin.getData().save();
+                                                
                                                 break;
                                         }
                                     } });
                             }
+                            if (event.getOption("user") != null) {
+                                OptionMapping userOption1 = event.getOption("user");
+                                Member Member1 = userOption1.getAsMember();
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_CHANGE_NAME")) {
+                                    try {
+                                        EXECUTOR.schedule(() -> Member1.modifyNickname(null).queue(),
+                                                1, TimeUnit.SECONDS);
+                                        com.windstudio.discordwl.API.UserNicknameChangedEvent event5 = new com.windstudio.discordwl.API.UserNicknameChangedEvent(
+                                                Member1,
+                                                null,
+                                                event.getChannel(),
+                                                event.getMember().getNickname());
+                                        Bukkit.getServer().getPluginManager().callEvent(event5);
+                                    } catch (Exception ex) {
+                                        plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't change user's nickname. Seems that user has higher role that bot!"));
+                                    }
+                                }
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_ROLE_ADD")) {
+                                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Add"), "disable")) {
+                                        if (Member1 != null) {
+                                            try {
+                                                if (event.getGuild().getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Add")) != null) {
+                                                    List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Whitelist.Add");
+                                                    for (String r : roleStringList) {
+                                                        if (event.getGuild().getRoleById(r) != null) {
+                                                            if (!hasRole(event.getMember(), event.getGuild(), event.getGuild().getRoleById(r).getId()))
+                                                                continue;
+                                                            event.getGuild().removeRoleFromMember(Member1, event.getGuild().getRoleById(r)).queue();
+                                                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                                com.windstudio.discordwl.API.UserRoleRemoveEvent event8 = new com.windstudio.discordwl.API.UserRoleRemoveEvent(
+                                                                        event.getMember(),
+                                                                        NICKNAME,
+                                                                        event.getChannel(),
+                                                                        event.getGuild().getRoleById(r));
+                                                                Bukkit.getServer().getPluginManager().callEvent(event8);
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            } catch (Exception ex) {
+                                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't remove role from user. Either user have higher role that bot, either roleID isn't correct!"));
+                                            }
+                                        }
+                                    }
+                                }
+                                if (getStringList("Plugin.Settings.Enabled").contains("WHITELIST_ROLE_REMOVE")) {
+                                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Remove"), "disable")) {
+                                        if (Member1 != null) {
+                                            try {
+                                                if (event.getGuild().getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Whitelist.Remove")) != null) {
+                                                    List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Whitelist.Remove");
+                                                    for (String r : roleStringList) {
+                                                        if (event.getGuild().getRoleById(r) != null) {
+                                                            if (hasRole(event.getMember(), event.getGuild(), event.getGuild().getRoleById(r).getId()))
+                                                                continue;
+                                                            event.getGuild().addRoleToMember(Member1, event.getGuild().getRoleById(r)).queue();
+                                                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                                com.windstudio.discordwl.API.UserRoleAddEvent event8 = new com.windstudio.discordwl.API.UserRoleAddEvent(
+                                                                        event.getMember(),
+                                                                        Member1.getNickname(),
+                                                                        event.getChannel(),
+                                                                        event.getGuild().getRoleById(r));
+                                                                Bukkit.getServer().getPluginManager().callEvent(event8);
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            } catch (Exception ex) {
+                                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't add role to user. Either user have higher role that bot, either roleID isn't correct!"));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.UserUnWhitelistedEvent eve = new com.windstudio.discordwl.API.UserUnWhitelistedEvent(event.getOption("user").getAsMember(), NICKNAME, event.getChannel());
+                                        Bukkit.getServer().getPluginManager().callEvent(eve);
+                                    });
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("SuccessEmbedColor")));
                             plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("SuccessTitle"));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRemovedSuccessful").replaceAll("%p", NICKNAME));
@@ -175,14 +375,22 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE));
-                            if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                                String mention = event.getInteraction().getMember().getAsMention();
-                                String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
-                                plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
-                                plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("WhitelistLogEmbedTitle"));
-                                plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistSlashCommandRemovedLogEmbedDescription").replaceAll("%a", mention).replaceAll("%d", discord).replaceAll("%p", NICKNAME));
-                                event.getGuild().getTextChannelById(getString("LogsChannelID")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
-                                        .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                            if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                                if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
+                                    String mention = event.getInteraction().getMember().getAsMention();
+                                    String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
+                                    plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
+                                    plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("WhitelistLogEmbedTitle"));
+                                    plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistSlashCommandRemovedLogEmbedDescription").replaceAll("%a", mention).replaceAll("%d", discord).replaceAll("%p", NICKNAME));
+                                    event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
+                                            .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                                event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                                LogsCause.WHITELIST);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                                    });
+                                } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                             }
                         } else {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
@@ -193,6 +401,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                             .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.NOT_WHITELSTED);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                         }
                         break;
                     case "list":
@@ -254,31 +470,54 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.CHECK_NOT_FOUND);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                         }
-                        if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                            TextChannel textChannel = event.getGuild().getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID"));
-                            String mention = event.getInteraction().getMember().getAsMention();
-                            String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
-                            plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
-                            plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("CheckLogEmbedTitle"));
-                            plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("CheckWhitelistLogEmbedDescription").replaceAll("%p", nickname).replaceAll("%a", mention).replaceAll("%d", discord));
-                            EXECUTOR.schedule(() -> textChannel.sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
-                                    1, TimeUnit.SECONDS);
+                        if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                            if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
+                                String mention = event.getInteraction().getMember().getAsMention();
+                                String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
+                                plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
+                                plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("CheckLogEmbedTitle"));
+                                plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("CheckWhitelistLogEmbedDescription").replaceAll("%p", nickname).replaceAll("%a", mention).replaceAll("%d", discord));
+                                EXECUTOR.schedule(() -> event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
+                                        1, TimeUnit.SECONDS);
+                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                    com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                            event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                            LogsCause.CHECK);
+                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                });
+                            } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                         }
                         break;
                     case "our":
-                        Bukkit.getScheduler().runTaskAsynchronously(Main.getPlugin(), new Runnable() {
+                        Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
                             public void run() {
                                 checkDB(plugin.getEmbedBuilder(), event, nickname);
-                                if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                                    TextChannel textChannel = event.getGuild().getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID"));
-                                    String mention = event.getInteraction().getMember().getAsMention();
-                                    String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
-                                    plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
-                                    plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("CheckLogEmbedTitle"));
-                                    plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("CheckWhitelistLogEmbedDescription").replaceAll("%p", nickname).replaceAll("%a", mention).replaceAll("%d", discord));
-                                    EXECUTOR.schedule(() -> textChannel.sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
-                                            1, TimeUnit.SECONDS);
+                                if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                                    if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
+                                        
+                                        String mention = event.getInteraction().getMember().getAsMention();
+                                        String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
+                                        plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
+                                        plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("CheckLogEmbedTitle"));
+                                        plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("CheckWhitelistLogEmbedDescription").replaceAll("%p", nickname).replaceAll("%a", mention).replaceAll("%d", discord));
+                                        EXECUTOR.schedule(() -> event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
+                                                1, TimeUnit.SECONDS);
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                                    event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                                    LogsCause.CHECK);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
+                                    } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                                 }
                             } });
                     }
@@ -288,7 +527,7 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                 OptionMapping optionDID = event.getOption("did");
                 new BukkitRunnable() {
                     public void run() {
-                        switch (getString("DataBaseType")) {
+                        switch (getString("Database.Type")) {
                             case "SQLite":
                                 if (optionNickname == null && optionDID != null) {
                                     String did = optionDID.getAsString();
@@ -301,6 +540,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 .flatMap(InteractionHook::deleteOriginal)
                                                 .queue(null, new ErrorHandler()
                                                         .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     if (did.length() != 18) {
@@ -312,11 +559,19 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 .flatMap(InteractionHook::deleteOriginal)
                                                 .queue(null, new ErrorHandler()
                                                         .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     try {
-                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE discord_id=?");
+                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE discord_id=?");
                                         preparedStatement.setString(1, did);
                                         ResultSet resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -352,11 +607,19 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 .flatMap(InteractionHook::deleteOriginal)
                                                 .queue(null, new ErrorHandler()
                                                         .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     try {
-                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE nickname=?");
+                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE nickname=?");
                                         preparedStatement.setString(1, nick);
                                         ResultSet resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -394,6 +657,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 .flatMap(InteractionHook::deleteOriginal)
                                                 .queue(null, new ErrorHandler()
                                                         .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     if (did.length() != 18) {
@@ -405,11 +676,19 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 .flatMap(InteractionHook::deleteOriginal)
                                                 .queue(null, new ErrorHandler()
                                                         .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     try {
-                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE discord_id=?");
+                                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE discord_id=?");
                                         preparedStatement.setString(1, did);
                                         ResultSet resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -444,6 +723,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                             .flatMap(InteractionHook::deleteOriginal)
                                             .queue(null, new ErrorHandler()
                                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.CHECK_NOT_FOUND);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                                    });
                                 }
                                 break;
                             case "MySQL":
@@ -455,6 +742,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                         plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                         plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckNotFoundDescription"));
                                         event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     if (did.length() != 18) {
@@ -462,12 +757,18 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                         plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                         plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckDiscordIDNotFound"));
                                         event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.CHECK_NOT_FOUND);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     ResultSet resultSet = null;
                                     try {
-                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE discord_id=?");
+                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE discord_id=?");
                                         preparedStatement.setString(1, did);
                                         resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -496,12 +797,20 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                         plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                         plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckNotFoundDescription"));
                                         event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    ErrorCause.CHECK_NOT_FOUND);
+                                            Bukkit.getServer().getPluginManager().callEvent(event1);
+                                        });
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     ResultSet resultSet = null;
                                     try {
-                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE nickname=?");
+                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE nickname=?");
                                         preparedStatement.setString(1, nick);
                                         resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -530,6 +839,12 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                         plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                         plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckNotFoundDescription"));
                                         event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.CHECK_NOT_FOUND);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
                                         return;
                                     }
                                     if (did.length() != 18) {
@@ -537,12 +852,18 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                         plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                         plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckDiscordIDNotFound"));
                                         event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.CHECK_NOT_FOUND);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
                                         return;
                                     }
                                     PreparedStatement preparedStatement = null;
                                     ResultSet resultSet = null;
                                     try {
-                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE discord_id=?");
+                                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE discord_id=?");
                                         preparedStatement.setString(1, did);
                                         resultSet = preparedStatement.executeQuery();
                                         List<String> list = plugin.getLanguageManager().getStringList("LinkingCheckFoundDescription");
@@ -569,11 +890,19 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                     plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingCheckNotFoundDescription"));
                                     event.getInteraction().getHook().sendMessageEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queueAfter(15, TimeUnit.SECONDS, Message::delete);
+                                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.CHECK_NOT_FOUND);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                                    });
                                 }
                                 break;
                         }
-                        if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                            TextChannel textChannel = event.getGuild().getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID"));
+                        if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                            
                             String mention = event.getInteraction().getMember().getAsMention();
                             String discord = event.getInteraction().getUser().getName() + "#" + event.getInteraction().getUser().getDiscriminator();
                             plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
@@ -589,14 +918,18 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                 String did = optionDID.getAsString();
                                 plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("CheckLinkLogEmbedDescription").replaceAll("%p", nick).replaceAll("%a", mention).replaceAll("%d", did).replaceAll("%i", discord).replaceAll("%l", did));
                             }
-                            EXECUTOR.schedule(() -> textChannel.sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
+                            EXECUTOR.schedule(() -> event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler().ignore(ErrorResponse.UNKNOWN_CHANNEL)),
                                     1, TimeUnit.SECONDS);
+                            com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                    event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                    LogsCause.CHECK);
+                            Bukkit.getServer().getPluginManager().callEvent(event1);
                         }
                     }
                 }.runTaskAsynchronously(plugin);
                 break;
             case "setupreaction":
-                if (getStringList("SettingsEnabled").contains("REACTIONS_WHITELIST")) {
+                if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
                     String title = plugin.getLanguageManager().get("ReactionEmbedTitle");
                     String color = plugin.getLanguageManager().get("ReactionEmbedColor");
                     List<String> listOne = plugin.getLanguageManager().getStringList("ReactionEmbedDescription");
@@ -613,6 +946,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                     plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("ReactionNotEnabled"));
                     plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                     event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.REACTIONS_NOT_ENABLED);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
                 }
                 break;
             case "list":
@@ -666,7 +1007,7 @@ public class SlashCommands extends ListenerAdapter implements Listener {
             case "account":
                 OptionMapping type1Option = event.getOption("type");
                 OptionMapping nick1Option = event.getOption("username");
-                if (!getStringList("SettingsEnabled").contains("LINKING")) {
+                if (!getStringList("Plugin.Settings.Enabled").contains("LINKING")) {
                     plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                     plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                     plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingTurnedOffEmbed"));
@@ -675,6 +1016,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             .flatMap(InteractionHook::deleteOriginal)
                             .queue(null, new ErrorHandler()
                             .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.LINKING_TURNED_OFF);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
                     return;
                 }
                 if (type1Option == null) {
@@ -695,7 +1044,7 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                 }
                 String TYPE1 = type1Option.getAsString();
                 String NICK1 = nick1Option.getAsString();
-                if (!NICK1.matches("^\\w{3,16}$") && getStringList("SettingsEnabled").contains("SLASHCOMMANDS_REGEX_CHECK")) {
+                if (!getStringList("Plugin.Settings.Enabled").contains("BEDROCK_SUPPORT") && !NICK1.matches("^\\w{3,16}$")) {
                     plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                     plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                     plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRegexErrorDescription"));
@@ -704,29 +1053,104 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             .flatMap(InteractionHook::deleteOriginal)
                             .queue(null, new ErrorHandler()
                                     .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.REGEX_ERROR);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
+                    return;
+                } else if (getStringList("Plugin.Settings.Enabled").contains("BEDROCK_SUPPORT") && !NICK1.matches("^(["+getString("Plugin.Settings.BedrockSymbol")+"])?([a-zA-Z0-9_ ]{3,16})$")) {
+                    plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
+                    plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
+                    plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRegexErrorDescription"));
+                    event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true)
+                            .delay(Duration.ofSeconds(15))
+                            .flatMap(InteractionHook::deleteOriginal)
+                            .queue(null, new ErrorHandler()
+                                    .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.REGEX_ERROR);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
                     return;
                 }
                 Player player = Bukkit.getPlayerExact(NICK1);
                 OfflinePlayer p1 = Bukkit.getOfflinePlayer(NICK1);
                 switch (TYPE1) {
                     case "link":
+                        if (getStringList("Plugin.Settings.Enabled").contains("REQUIRE_ROLE") && !Objects.equals(plugin.getString("Configuration.Plugin.RoleID.Require.Link"), "disable")) {
+                            List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Require.Link");
+                            for (String r : roleStringList) {
+                                if (event.getGuild().getRoleById(r) != null) {
+                                    if (hasAtLeastRole(event.getMember(), event.getGuild(), roleStringList)) continue;
+                                    plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
+                                    plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
+                                    plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("RequireRoleLink"));
+                                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                event.getMember(),
+                                                event.getMember().getNickname(),
+                                                event.getChannel(),
+                                                ErrorCause.HAVE_NO_ROLE);
+                                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                                    });
+                                    return;
+                                }
+                                    event.getChannel().sendTyping().queue();
+                                    if (getStringList("Plugin.Settings.Enabled").contains("EPHEMERAL_MESSAGES")) {
+                                        EXECUTOR.schedule(() -> event.getChannel().sendMessageEmbeds(plugin.getEmbedBuilder().build())
+                                                        .delay(Duration.ofSeconds(15))
+                                                        .flatMap(Message::delete)
+                                                        .queue(null, new ErrorHandler()
+                                                                .ignore(ErrorResponse.UNKNOWN_MESSAGE)),
+                                                1, TimeUnit.SECONDS);
+                                    } else {
+                                        EXECUTOR.schedule(() -> event.getChannel().sendMessageEmbeds(plugin.getEmbedBuilder().build()),
+                                                1, TimeUnit.SECONDS);
+                                }
+                            }
+                            return;
+                        }
                         event.deferReply();
                         if (!p1.isOnline()) {
                             plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandPlayerNotOnlne"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.PLAYER_OFFLINE);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         String playerUUID = player.getUniqueId().toString();
 
-                                    switch (getString("DataBaseType")) {
+                                    switch (getString("Database.Type")) {
                                         case "SQLite":
                                             if (plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
                                                 plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                                                 plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                                 plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandAlreadyLinked"));
                                                 event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                    com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                            event.getMember(),
+                                                            event.getMember().getNickname(),
+                                                            event.getChannel(),
+                                                            ErrorCause.ALREADY_LINKED);
+                                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                                });
                                                 return;
                                             }
                                             break;
@@ -736,16 +1160,32 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                                 plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandAlreadyLinked"));
                                                 event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                    com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                            event.getMember(),
+                                                            event.getMember().getNickname(),
+                                                            event.getChannel(),
+                                                            ErrorCause.ALREADY_LINKED);
+                                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                                });
                                                 return;
                                             }
                                             break;
                                     }
 
-                        if ((event.getMember().getRoles().stream().filter(role -> role.getName().equals(Main.plugin.getConfig().getString("LinkedRoleID"))).findAny().orElse(null) != null)) {
+                        if ((event.getMember().getRoles().stream().filter(role -> role.getName().equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add"))).findAny().orElse(null) != null)) {
                             plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandAlreadyLinked"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.ALREADY_LINKED);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         if (NICK1.length() <= 3 || NICK1.length() > 16) {
@@ -753,6 +1193,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandNicknameError"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.INVALID_NICKNAME);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         if (LinkingCommand.getUuidIdMap().containsValue(event.getInteraction().getUser().getId())) {
@@ -760,6 +1208,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandCodeGenerated"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.LINKING);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         LinkingCommand.getUuidCodeMap().put(p1.getUniqueId(), plugin.getClassManager().getLinkingCommand().getCODE());
@@ -775,14 +1231,22 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandPlayerNotOnlne"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.PLAYER_OFFLINE);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         //event.getInteraction().getHook().sendMessage("...").setEphemeral(true).queue();
                         String playerOUUID = player.getUniqueId().toString();
-                        if (event.getMember().getRoles().stream().filter(role -> role.getName().equals(Main.plugin.getConfig().getString("LinkedRoleID"))).findAny().orElse(null) == null) {
+                        if (event.getMember().getRoles().stream().filter(role -> role.getName().equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add"))).findAny().orElse(null) == null) {
                             new BukkitRunnable() {
                                 public void run() {
-                                    switch (getString("DataBaseType")) {
+                                    switch (getString("Database.Type")) {
                                         default:
                                         case "SQLite":
                                             if (!(plugin.getClassManager().getUserdata().userProfileExists(playerOUUID))) {
@@ -790,6 +1254,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                                 plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandNotLinked"));
                                                 event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                    com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                            event.getMember(),
+                                                            event.getMember().getNickname(),
+                                                            event.getChannel(),
+                                                            ErrorCause.LINKING);
+                                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                                });
                                             }
                                             break;
                                         case "MySQL":
@@ -798,6 +1270,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                                 plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                                                 plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandNotLinked"));
                                                 event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                                                Bukkit.getScheduler().runTask(plugin, ()-> {
+                                                    com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                                            event.getMember(),
+                                                            event.getMember().getNickname(),
+                                                            event.getChannel(),
+                                                            ErrorCause.LINKING);
+                                                    Bukkit.getServer().getPluginManager().callEvent(event1);
+                                                });
                                             }
                                             break;
                                     }
@@ -809,6 +1289,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandNicknameError"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.INVALID_NICKNAME);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
                         if (LinkingCommand.getUuidCodeMap().containsValue(event.getInteraction().getUser().getId())) {
@@ -816,10 +1304,17 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                             plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                             plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingSlashCommandCodeGenerated"));
                             event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true).queue();
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.LINKING);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                             return;
                         }
-                        //System.out.println(Main.getUserdata().getSingleInformationFromUserProfile(player, "uuid", player.getUniqueId().toString(), "discord_id"));
-                        switch (getString("DataBaseType")) {
+                        switch (getString("Database.Type")) {
                             case "SQLite":
                                 DoSQLite(player, event, plugin.getEmbedBuilder());
                                 break;
@@ -839,9 +1334,6 @@ public class SlashCommands extends ListenerAdapter implements Listener {
         new BukkitRunnable() {
             public void run() {
                 if (plugin.getClassManager().getUserdata().getSingleInformationFromUserProfile("uuid", player.getUniqueId().toString(), "discord_id").equals(event.getInteraction().getUser().getId())) {
-                    if (event.getInteraction().getMember().getRoles().contains(Main.plugin.getConfig().getString("LinkedRoleID"))) {
-                        event.getInteraction().getMember().getRoles().remove(Main.plugin.getConfig().getString("LinkedRoleID"));
-                    }
                     plugin.getClassManager().getUserdata().deleteInformationFromUserProfile("uuid", player.getUniqueId().toString());
                     eb.setTitle(plugin.getLanguageManager().get(("SuccessTitle")));
                     eb.setColor(Color.decode(plugin.getLanguageManager().get("SuccessEmbedColor")));
@@ -849,42 +1341,78 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                     event.replyEmbeds(eb.build()).setEphemeral(true).queue();
                     String Discord = event.getUser().getName() + "#" + event.getUser().getDiscriminator();
                     player.sendMessage(ColorManager.translate(plugin.getLanguageManager().get("LinkingUnlinkedMessage").replaceAll("%u", Discord)));
-                    if (plugin.getConfig().getString("LinkedRoleID") != null) {
-                        if (Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID")) != null) {
+                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add"), "disable")) {
                             try {
-                                Role verifiedRole = Main.getJDA().getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID"));
-                                Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).removeRoleFromMember(event.getMember(), verifiedRole).queue();
+                                List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Add");
+                                for (String r : roleStringList) {
+                                    if (event.getGuild().getRoleById(r) != null) {
+                                        event.getGuild().removeRoleFromMember(event.getInteraction().getMember(), event.getGuild().getRoleById(r)).queue();
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.UserRoleRemoveEvent event8 = new com.windstudio.discordwl.API.UserRoleRemoveEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    event.getGuild().getRoleById(r));
+                                            Bukkit.getServer().getPluginManager().callEvent(event8);
+                                        });
+                                    }
+                                }
                             } catch (Exception e) {
-                                console.sendMessage(ColorManager.translate("&c > &fBot can't add role to user. Seems that user has higher role that bot!"));
+                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't add role to user. Seems that user has higher role that bot!"));
                                 player.sendMessage(ColorManager.translate("&cBot can't add you role!"));
                             }
                         }
-                    }
-                    if (!Objects.equals(plugin.getConfig().getString("LinkedRemoveRoleID"), "notuse")) {
-                        if (Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID")) != null) {
+                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Remove"), "disable")) {
                             try {
-                                Role verifiedRemoveRole = Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID"));
-                                Main.getJDA().getGuildById(Main.plugin.getConfig().getString("GuildID")).addRoleToMember(event.getMember(), verifiedRemoveRole).queue();
+                                List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Remove");
+                                for (String r : roleStringList) {
+                                    if (event.getGuild().getRoleById(r) != null) {
+                                        event.getGuild().addRoleToMember(event.getInteraction().getMember(), event.getGuild().getRoleById(r)).queue();
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.UserRoleAddEvent event8 = new com.windstudio.discordwl.API.UserRoleAddEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    event.getGuild().getRoleById(r));
+                                            Bukkit.getServer().getPluginManager().callEvent(event8);
+                                        });
+                                    }
+                                }
                             } catch (Exception e) {
-                                console.sendMessage(ColorManager.translate("&c > &fBot can't remove role from user. Seems that user has higher role that bot!"));
+                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't remove role from user. Seems that user has higher role that bot!"));
                                 player.sendMessage(ColorManager.translate("&cBot can't remove role from you!"));
                             }
                         }
-                    }
-                    if (getStringList("SettingsEnabled").contains("UNLINK_NAME_CHANGE")) event.getMember().modifyNickname(null).queue();
-                    if (getStringList("SettingsEnabled").contains("LOGGING")) {
-                        String mention = event.getInteraction().getMember().getAsMention();
-                        plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
-                        plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("LinkingLogTitle"));
-                        plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingLogUnLinkedDescription").replaceAll("%u", mention).replaceAll("%d", Discord).replaceAll("%p", player.getName()).replaceAll("%i", player.getUniqueId().toString()));
-                        event.getGuild().getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
-                                .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                    if (getStringList("Plugin.Settings.Enabled").contains("LINKING_NAME_CHANGE")) event.getMember().modifyNickname(null).queue();
+                    if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                        if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
+                            String mention = event.getInteraction().getMember().getAsMention();
+                            plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
+                            plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("LinkingLogTitle"));
+                            plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingLogUnLinkedDescription").replaceAll("%u", mention).replaceAll("%d", Discord).replaceAll("%p", player.getName()).replaceAll("%i", player.getUniqueId().toString()));
+                            event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
+                                    .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                        event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                        LogsCause.LINK);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
+                        } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                     }
                 } else {
                     eb.setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                     eb.setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                     eb.setDescription(plugin.getLanguageManager().get("LinkingSlashCommandAccountNotYours"));
                     event.replyEmbeds(eb.build()).setEphemeral(true).queue();
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.LINKING);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -893,9 +1421,6 @@ public class SlashCommands extends ListenerAdapter implements Listener {
         new BukkitRunnable() {
             public void run() {
                 if (plugin.getClassManager().getUserdataMySQL().getSingleInformationFromUserProfile("uuid", player.getUniqueId().toString(), "discord_id").equals(event.getInteraction().getUser().getId())) {
-                    if (event.getInteraction().getMember().getRoles().contains(Main.plugin.getConfig().getString("LinkedRoleID"))) {
-                        event.getInteraction().getMember().getRoles().remove(Main.plugin.getConfig().getString("LinkedRoleID"));
-                    }
                     plugin.getClassManager().getUserdataMySQL().deleteInformationFromUserProfile("uuid", player.getUniqueId().toString());
                     eb.setTitle(plugin.getLanguageManager().get(("SuccessTitle")));
                     eb.setColor(Color.decode(plugin.getLanguageManager().get("SuccessEmbedColor")));
@@ -903,42 +1428,80 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                     event.replyEmbeds(eb.build()).setEphemeral(true).queue();
                     String Discord = event.getUser().getName() + "#" + event.getUser().getDiscriminator();
                     player.sendMessage(ColorManager.translate(plugin.getLanguageManager().get("LinkingUnlinkedMessage").replaceAll("%u", Discord)));
-                    if (plugin.getConfig().getString("LinkedRoleID") != null) {
-                        if (Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID")) != null) {
+                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Add"), "disable")) {
                             try {
-                                Role verifiedRole = Main.getJDA().getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRoleID"));
-                                Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).removeRoleFromMember(event.getMember(), verifiedRole).queue();
+                                List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Add");
+                                for (String r : roleStringList) {
+                                    if (event.getGuild().getRoleById(r) != null) {
+                                        event.getGuild().removeRoleFromMember(event.getInteraction().getMember(), event.getGuild().getRoleById(r)).queue();
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.UserRoleRemoveEvent event8 = new com.windstudio.discordwl.API.UserRoleRemoveEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    event.getGuild().getRoleById(r));
+                                            Bukkit.getServer().getPluginManager().callEvent(event8);
+                                        });
+                                    }
+                                }
                             } catch (Exception e) {
-                                console.sendMessage(ColorManager.translate("&c > &fBot can't add role to user. Seems that user has higher role that bot!"));
+                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't add role to user. Seems that user has higher role that bot!"));
                                 player.sendMessage(ColorManager.translate("&cBot can't add you role!"));
                             }
                         }
-                    }
-                    if (!Objects.equals(plugin.getConfig().getString("LinkedRemoveRoleID"), "notuse")) {
-                        if (Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID")) != null) {
+                    if (!Objects.equals(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Remove"), "disable")) {
+                        if (Main.getJDA().getGuildById(plugin.getConfig().getString("Service.ServerID")).getRoleById(plugin.getConfig().getString("Configuration.Plugin.RoleID.Link.Remove")) != null) {
                             try {
-                                Role verifiedRemoveRole = Main.getJDA().getGuildById(Main.plugin.getConfig().getString("GuildID")).getRoleById(Main.plugin.getConfig().getString("LinkedRemoveRoleID"));
-                                Main.getJDA().getGuildById(plugin.getConfig().getString("GuildID")).addRoleToMember(event.getMember(), verifiedRemoveRole).queue();
+                                List<String> roleStringList = plugin.getStringList("Configuration.Plugin.RoleID.Link.Remove");
+                                for (String r : roleStringList) {
+                                    if (event.getGuild().getRoleById(r) != null) {
+                                        event.getGuild().addRoleToMember(event.getInteraction().getMember(), event.getGuild().getRoleById(r)).queue();
+                                        Bukkit.getScheduler().runTask(plugin, ()-> {
+                                            com.windstudio.discordwl.API.UserRoleAddEvent event8 = new com.windstudio.discordwl.API.UserRoleAddEvent(
+                                                    event.getMember(),
+                                                    event.getMember().getNickname(),
+                                                    event.getChannel(),
+                                                    event.getGuild().getRoleById(r));
+                                            Bukkit.getServer().getPluginManager().callEvent(event8);
+                                        });
+                                    }
+                                }
                             } catch (Exception e) {
-                                console.sendMessage(ColorManager.translate("&c > &fBot can't remove role from user. Seems that user has higher role that bot!"));
+                                plugin.getConsole().sendMessage(ColorManager.translate("&c › &fBot can't remove role from user. Seems that user has higher role that bot!"));
                                 player.sendMessage(ColorManager.translate("&cBot can't remove role from you!"));
                             }
                         }
                     }
-                    if (getStringList("SettingsEnabled").contains("UNLINK_NAME_CHANGE")) event.getMember().modifyNickname(null).queue();
-                    if (getStringList("SettingsEnabled").contains("LOGGING")) {
+                    if (getStringList("Plugin.Settings.Enabled").contains("LINKING_NAME_CHANGE")) event.getMember().modifyNickname(null).queue();
+                    if (getStringList("Plugin.Settings.Enabled").contains("LOGGING")) {
+                        if (event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")) != null) {
                         String mention = event.getInteraction().getMember().getAsMention();
                         plugin.getLogsEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("LogsEmbedColor")));
                         plugin.getLogsEmbedBuilder().setTitle(plugin.getLanguageManager().get("LinkingLogTitle"));
                         plugin.getLogsEmbedBuilder().setDescription(plugin.getLanguageManager().get("LinkingLogUnLinkedDescription").replaceAll("%u", mention).replaceAll("%d", Discord).replaceAll("%p", player.getName()).replaceAll("%i", player.getUniqueId().toString()));
-                        event.getGuild().getTextChannelById(Main.plugin.getConfig().getString("LogsChannelID")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
+                        event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")).sendMessageEmbeds(plugin.getLogsEmbedBuilder().build()).queue(null, new ErrorHandler()
                                 .ignore(ErrorResponse.UNKNOWN_CHANNEL));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.LogsSendEvent event1 = new com.windstudio.discordwl.API.LogsSendEvent(
+                                        event.getGuild().getTextChannelById(plugin.getConfig().getString("Configuration.Plugin.ChannelID.Logs")),
+                                        LogsCause.LINK);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
+                        } else plugin.getConsole().sendMessage(ColorManager.translate("&c › &fField &cLogsChannelID &ffilled not correct! Plugin can't find this channel! Check it."));
                     }
                 } else {
                     eb.setTitle(plugin.getLanguageManager().get("ErrorTitle"));
                     eb.setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
                     eb.setDescription(plugin.getLanguageManager().get("LinkingSlashCommandAccountNotYours"));
                     event.replyEmbeds(eb.build()).setEphemeral(true).queue();
+                    Bukkit.getScheduler().runTask(plugin, ()-> {
+                        com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                event.getMember(),
+                                event.getMember().getNickname(),
+                                event.getChannel(),
+                                ErrorCause.LINKING);
+                        Bukkit.getServer().getPluginManager().callEvent(event1);
+                    });
                 }
             }
         }.runTaskAsynchronously(plugin);
@@ -946,7 +1509,7 @@ public class SlashCommands extends ListenerAdapter implements Listener {
     public void checkDB(EmbedBuilder eb, SlashCommandInteractionEvent event, String nickname) {
         new BukkitRunnable() {
             public void run() {
-                switch (getString("DataBaseType")) {
+                switch (getString("Database.Type")) {
                     case "SQLite":
                         if (plugin.getClassManager().getSqLiteWhitelistData().userPlayerExists(nickname)) {
                             eb.setColor(Color.decode(plugin.getLanguageManager().get("SuccessEmbedColor")));
@@ -966,6 +1529,14 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                             .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.CHECK_NOT_FOUND);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                         }
                         break;
                     case "MySQL":
@@ -987,14 +1558,63 @@ public class SlashCommands extends ListenerAdapter implements Listener {
                                     .flatMap(InteractionHook::deleteOriginal)
                                     .queue(null, new ErrorHandler()
                                             .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+                            Bukkit.getScheduler().runTask(plugin, ()-> {
+                                com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                                        event.getMember(),
+                                        event.getMember().getNickname(),
+                                        event.getChannel(),
+                                        ErrorCause.CHECK_NOT_FOUND);
+                                Bukkit.getServer().getPluginManager().callEvent(event1);
+                            });
                         }
                         break;
                 }
             }
         }.runTaskAsynchronously(plugin);
     }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
     public List<String> getStringList(String path){
-        return Main.plugin.getConfig().getStringList(path);
+        return plugin.getConfig().getStringList(path);
+    }
+    void err(SlashCommandInteractionEvent event) {
+        plugin.getEmbedBuilder().setColor(Color.decode(plugin.getLanguageManager().get("ErrorEmbedColor")));
+        plugin.getEmbedBuilder().setTitle(plugin.getLanguageManager().get("ErrorTitle"));
+        plugin.getEmbedBuilder().setDescription(plugin.getLanguageManager().get("WhitelistRegexErrorDescription"));
+        event.replyEmbeds(plugin.getEmbedBuilder().build()).setEphemeral(true)
+                .delay(Duration.ofSeconds(15))
+                .flatMap(InteractionHook::deleteOriginal)
+                .queue(null, new ErrorHandler()
+                        .ignore(ErrorResponse.UNKNOWN_MESSAGE));
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            com.windstudio.discordwl.API.ErrorReceivedEvent event1 = new com.windstudio.discordwl.API.ErrorReceivedEvent(
+                    event.getMember(),
+                    event.getMember().getNickname(),
+                    event.getChannel(),
+                    ErrorCause.REGEX_ERROR);
+            Bukkit.getServer().getPluginManager().callEvent(event1);
+        });
+        return;
+    }
+    void backupWhitelistFile() {
+        File whitelistFileBackup = new File("whitelist-backup-action.json");
+        whitelistFileBackup.deleteOnExit();
+        try {
+            FileUtils.copyFile(new File("whitelist.json"), whitelistFileBackup);
+        } catch (IOException e) {
+            plugin.getConsole().sendMessage(e.toString());
+        }
+    }
+    public boolean hasRole(Member member, Guild guild, String roleID) {
+        List<Role> memberRoles = member.getRoles();
+        return memberRoles.contains(guild.getRoleById(roleID));
+    }
+    public boolean hasAtLeastRole(Member member, Guild guild, List<String> roleID) {
+        List<Role> memberRoles = member.getRoles();
+        for (String s : roleID) {
+            if (guild.getRoleById(s) != null) {
+                if (memberRoles.contains(guild.getRoleById(s))) return true;
+            }
+        }
+        return false;
     }
 }

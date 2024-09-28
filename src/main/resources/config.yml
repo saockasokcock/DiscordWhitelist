@@ -1,224 +1,439 @@
 #
-#    ╔═══╦══╦═══╦═══╦═══╦═══╦═══╦╗╔╗╔╦╗ ╔╦══╦════╦═══╦╗  ╔══╦═══╦════╗
-#    ╚╗╔╗╠╣╠╣╔═╗║╔═╗║╔═╗║╔═╗╠╗╔╗║║║║║║║ ║╠╣╠╣╔╗╔╗║╔══╣║  ╚╣╠╣╔═╗║╔╗╔╗║
-#     ║║║║║║║╚══╣║ ╚╣║ ║║╚═╝║║║║║║║║║║╚═╝║║║╚╝║║╚╣╚══╣║   ║║║╚══╬╝║║╚╝
-#     ║║║║║║╚══╗║║ ╔╣║ ║║╔╗╔╝║║║║╚╝╚╝║╔═╗║║║  ║║ ║╔══╣║ ╔╗║║╚══╗║ ║║
-#    ╔╝╚╝╠╣╠╣╚═╝║╚═╝║╚═╝║║║╚╦╝╚╝╠╗╔╗╔╣║ ║╠╣╠╗ ║║ ║╚══╣╚═╝╠╣╠╣╚═╝║ ║║
-#    ╚═══╩══╩═══╩═══╩═══╩╝╚═╩═══╝╚╝╚╝╚╝ ╚╩══╝ ╚╝ ╚═══╩═══╩══╩═══╝ ╚╝
-#             DISCORD WHITELIST BOT - VERSION 4.20-ASTER (Developer Preview 4LCX)
-#                      Thanks for using DiscordWhitelist plugin!
 #
-# Special thanks for:
-# ・ Tofa -> https://vk.com/hrp2000
-# ・ AqUpd -> https://vk.com/aqupd
-# ・ Ubivashka -> https://vk.com/bbaty45
-#   for supporting me and helping with plugin version: 2.10!
+#  ┏━━━┳━━┳━━━┳━━━┳━━━┳━━━┳━━━┳┓┏┓┏┳┓ ┏┳━━┳━━━━┳━━━┳┓  ┏━━┳━━━┳━━━━┓
+#  ┗┓┏┓┣┫┣┫┏━┓┃┏━┓┃┏━┓┃┏━┓┣┓┏┓┃┃┃┃┃┃┃ ┃┣┫┣┫┏┓┏┓┃┏━━┫┃  ┗┫┣┫┏━┓┃┏┓┏┓┃
+#   ┃┃┃┃┃┃┃┗━━┫┃ ┗┫┃ ┃┃┗━┛┃┃┃┃┃┃┃┃┃┃┗━┛┃┃┃┗┛┃┃┗┫┗━━┫┃   ┃┃┃┗━━╋┛┃┃┗┛
+#   ┃┃┃┃┃┃┗━━┓┃┃ ┏┫┃ ┃┃┏┓┏┛┃┃┃┃┗┛┗┛┃┏━┓┃┃┃  ┃┃ ┃┏━━┫┃ ┏┓┃┃┗━━┓┃ ┃┃
+#  ┏┛┗┛┣┫┣┫┗━┛┃┗━┛┃┗━┛┃┃┃┗┳┛┗┛┣┓┏┓┏┫┃ ┃┣┫┣┓ ┃┃ ┃┗━━┫┗━┛┣┫┣┫┗━┛┃ ┃┃
+#  ┗━━━┻━━┻━━━┻━━━┻━━━┻┛┗━┻━━━┛┗┛┗┛┗┛ ┗┻━━┛ ┗┛ ┗━━━┻━━━┻━━┻━━━┛ ┗┛
+#                   𝗗𝗜𝗦𝗖𝗢𝗥𝗗𝗪𝗛𝗜𝗧𝗘𝗟𝗜𝗦𝗧 ・ v24.3.4
+#                ᴍᴏᴅᴇʀɴ ꜱᴇʀᴠᴇʀ ꜱᴇᴄᴜʀɪᴛʏ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ
+#
+# 𝐖𝐈𝐍𝐃 𝐒𝐓𝐔𝐃𝐈𝐎 ᓥ Discord server ❘ https://discord.gg/XMGprbGtgR
+# 𝗗𝗜𝗦𝗖𝗢𝗥𝗗𝗪𝗛𝗜𝗧𝗘𝗟𝗜𝗦𝗧 Wiki page ❘ https://windstudio.gitbook.io/discordwhitelist
+#
+# 𝗧𝗵𝗮𝗻𝗸𝘀 𝗳𝗼𝗿 𝗰𝗵𝗼𝗼𝘀𝗲 𝗗𝗜𝗦𝗖𝗢𝗥𝗗𝗪𝗛𝗜𝗧𝗘𝗟𝗜𝗦𝗧 𝗽𝗹𝘂𝗴𝗶𝗻 ♥
 #
 
-Language: en_US
-# Defines what language will use to send messages. You can translate it.
-# List of supported languages: https://windstudio.gitbook.io/discordwhitelist/step-by-step-setting/setting-up-our-bot
+# Section where you NEED to configure basic settings
+# without which the plugin will not start
+Service:
 
-Token: ReplaceThisWithYourBotToken
-# Bot token from "https://discord.com/developers/applications"
+  # Defines what language will be used to send messages
+  # You can translate language file by yourself
+  # (and suggest your translation on our Discord server)
+  # or use pre-translated supported languages files
+  # List of supported languages ❘ https://windstudio.gitbook.io/discordwhitelist/step-by-step-setting/setting-up-our-bot
+  Language: en_US
 
-GuildID: ReplaceThisWithYourGuildID
-# (Requires developer mode enabled!) Copy your guild ID via: RMB on your server -> click on COPY ID button
+  # Should plugin send message about updates of a plugin
+  # to a player(OP & Permission) and in console?
+  Check-Updates: true
 
-Check-Updates: true
-# Should we send message about updates of a plugin to a player and console?
-# Not works for some time on Folia because of API broken
+  # (Requires developer mode enabled)
+  # These option let plugin know about server you're on,
+  # so plugin will use it for its needs.
+  # Copy your server ID using: RMB on your server -> click on COPY ID button
+  ServerID: ReplaceThisWithYourServerID
 
-### DATABASE ###
+  # You can find Bot Token on Discord Developer Portal ❘ https://discord.com/developers/applications
+  # Some instructions how to configure this option:
+  #  1 ❘ Go to Discord Developer Portal, create(or choose existing) bot
+  #  2 ❘ Go to his settings, then go to 'Bot' page and enable in 'Privileged Gateway Intents' header: PRESENCE INTENT, SERVER MEMBERS INTENT and MESSAGE CONTENT INTENT
+  #  3 ❘ Scroll up and tap 'Reset bot token' button, then copy this token and replace 'ReplaceThisWithYourBotToken' with your token
+  #  4 ❘ Save config and reload the server
+  Token: ReplaceThisWithYourBotToken
 
-DataBaseType: SQLite
-# Defines which database plugin will use to store data.
-# You can use SQLite or MySQL (case-sensitive)
+  # Since plugin uses unique encryption system for every token,
+  # plugin generate a unique password to access your token, so
+  # you should enable this if you want to change your token to
+  # let plugin generate new password for your new token.
+  # Some instructions of usage:
+  #  1 ❘ Turn off your server(or, if you use ReloadModule, you can keep server online)
+  #  2 ❘ Go to config, then enable TokenReplacement(replace 'false' to 'true')
+  #  3 ❘ Replace your current(encrypted) Token with new one
+  #  4 ❘ Save your config, then you can enable server(or, if you use ReloadModule, reload plugin)
+  # This feature will return to 'false' condition when encryption success
+  TokenReplacement: false
 
-#=#=#=#=#=#=#=#=#=#=#=# SQLite SETTINGS #=#=#=#=#=#=#=#=#=#=#=#
-                                                              #
-SQLiteDatabaseName: information                               #
-# Name of file where information will store                   #
-                                                              #
-SQLiteTableName_Linking: linking_table                        #
-# Name of table where linking information will store          #
-                                                              #
-SQLiteTableName_Whitelist: whitelist_table                    #
-# Name of table where whitelist information will store        #
-                                                              #
-SQLiteTableName_LoginPanel: loginpanel_table                  #
-# Name of table where login information will store            #
-                                                              #
-#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#
+  # Current version of plugin's components
+  # Please, use this to report any problem related to plugin
+  Version:
+    Plugin: v24.3.4
+    API: v25
+    EWhitelist: v1.25.3
+    Linking: v1.07
+    Modules: v1
 
-#=#=#=#=#=#=#=#=#=#=#=# MySQL SETTINGS #=#=#=#=#=#=#=#=#=#=#=#
-                                                             #
-MySQL_Host: localhost                                        #
-# Database dedicated host                                    #
-                                                             #
-MySQL_Port: 3306                                             #
-# Database port of dedicated host                            #
-                                                             #
-MySQL_Login: root                                            #
-# Database login of dedicated host                           #
-                                                             #
-MySQL_Password: root                                         #
-# Database password of dedicated host                        #
-                                                             #
-MySQL_DatabaseName: information                              #
-# Name of file where information will store                  #
-                                                             #
-MySQL_TableName_Linking: linking_table                       #
-# Name of table where linking information will store         #
-                                                             #
-MySQL_TableName_Whitelist: whitelist_table                   #
-# Name of table where whitelist information will store       #
-                                                             #
-MySQL_TableName_LoginPanel: loginpanel_table                 #
-# Name of table where login information will store           #
-                                                             #
-MySQL_Connection_TimeOut: 3000                               #
-# Connection timeout(in ms)                                  #
-                                                             #
-#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#+
+  # This thing can help you know what's going on with plugin.
+  # There are some indicators of plugin work that'll be changed until plugin setup success:
+  #  ❘ LAUNCHED - Plugin was launched for the first time
+  #  ❘ TOKEN_ERROR - Plugin can't login bot with token you've provided
+  #  ❘ SECURE_ERROR - Plugin can't encrypt/decrypt token you've provided [Contact developer]
+  #  ❘ JDA_ERROR - Bot can't login for some reason, possibly errors with JDA [Contact developer]
+  #  ❘ INSTALLED - Plugin successfully installed, works fine
+  InstallationIndicator: LAUNCHED
 
-###          ###
 
-### MAIN ###
+# Database-related section, where you can change database type and its settings
+Database:
 
-WhitelistChannelID: "ChannelID"
-# WhitelistChannelID that used for whitelisting people
+  # Defines which database type plugin will use to store data
+  # You can use following types (case-sensitive):
+  #  ❘ SQLite - local file database. Designed for small servers
+  #  ❘ MySQL - server database. Designed for networks
+  Type: SQLite
 
-GlobalChannelID: "GlobalChannelID"
-# GlobalChannelID that used for texting about welcome users. Required for SEND_WELCOME_MESSAGE (7) feature.
+  # Here you can configure your database
+  # We highly recommend you to either configure it before plugin
+  # loaded for first time, either to change only login information
+  # (for MySQL) and do not touch other things.
+  Settings:
 
-LogsChannelID: "LogsChannelID"
-# GlobalChannelID that used to receive whitelist logs. Required for LOGGING (15) feature.
+    # Section, where you can configure SQLite database
+    # We recommend you to do not touch these settings
+    SQLite:
 
-AdminChannelID: "AdminChannelID"
-# AdminChannelID that used to receive help requests. Required for LOGIN_CONTROL_PANEL (17) feature.
+      # Name of database file where information will be stored
+      DatabaseName: information
 
-Status&Activities: true
-# Defines will plugin set bot's status and activity
+      # Name of tables inside the db file
+      TableName:
 
-Status: Online
-# Defines which type of status bot will use. Compatible types:
-# Online, DND, Idle, Invisible
+        # Name of table where linking information will store
+        Linking: linking_table
 
-ActivitiesType: Playing
-# Defines which type of activity bot will use. Compatible types:
-# Playing, Listening, Watching, Streaming, Competing
+        # Name of table where whitelist information will store
+        Whitelist: whitelist_table
 
-Activity: "Minecraft Server | %0 players online"
-# Complements ActivitiesType, like: Playing Minecraft server
-# %0 - players online on the server
+        # Name of table where login information will store
+        LoginPanel: loginpanel_table
 
-ActivityURL: "https://youtube.com"
-# Used only for Streaming ActivityType! Grants user open this URL while bot streaming smth.
-# For example works with https://www.twitch.tv/user // https://www.youtube.com/watch?v=
+    # Section, where you can configure MySQL database
+    # We highly recommend you to change only login information
+    MySQL:
 
-###          ###
+      # Login information for your MySQL server
+      Host:
 
-### SETTINGS ###
+        # Database dedicated host
+        IP: localhost
 
-Floodgate_Bedrock_Symbol: .
-# Special symbol for 'FLOODGATE_BEDROCK' setting
+        # Port of Database dedicated host
+        Port: 3306
 
-RoleID: "RoleID"
-# RoleID that used when player added in whitelist [Discord Role]
-# 'notuse' tag will force plugin ignore this role to add
+        # Login of Database dedicated host
+        Login: root
 
-RemoveRoleID: "notuse"
-# RoleID that will be removed when player was whitelisted [Discord Role]
-# 'notuse' tag will force plugin ignore this role to remove
+        # Password of Database dedicated host
+        Password: root
 
-LinkedRoleID: "LinkedRoleID"
-# RoleID that will be added when player was linked [Discord Role]
-# Will be removed when user unlink his account
-# 'notuse' tag will force plugin ignore this role to add
+        # Connection timeout(in ms)
+        # Change it only when you know what you're doing!
+        ConnectionTimeOut: 3000
 
-LinkedRemoveRoleID: "notuse"
-# RoleID that will be removed when player linked his account [Discord Role]
-# Will be added back when user unlink his account
-# 'notuse' tag will force plugin ignore this role to remove
+      # Name of database file where information will be stored
+      DatabaseName: information
 
-ReactionsRoleID: "notuse"
-# RoleID that will be added when player click on ReactionButton [Discord Role]
-# 'notuse' tag will force plugin ignore this role to add
+      # Name of tables inside the db file
+      TableName:
 
-ReactionsRemoveRoleID: "notuse"
-# RoleID that will be removed when player click on ReactionButton [Discord Role]
-# 'notuse' tag will force plugin ignore this role to remove
+        # Name of table where linking information will store
+        Linking: linking_table
 
-Blacklist-nick: [TestNick,TestNick2]
-# Edit this nicknames if u enabled the blacklist feature
+        # Name of table where whitelist information will store
+        Whitelist: whitelist_table
 
-Blacklist-ID: [123456789123456789, 123456789123456789]
-# Edit this nicknames if u enabled the blacklist feature
+        # Name of table where login information will store
+        LoginPanel: loginpanel_table
 
-###          ###
 
-### FEATURES ###
-# PLEASE, DON'T ENABLE 2 SAME FEATURES IN ONE MOMENT - IT WILL FORCE RUN IT TWICE!
+# Section, where you can configure main features of plugin
+Configuration:
 
-WelcomeMessageType: EMBED
-# GlobalChannelID. Types: EMBED or TEXT
+  # Section, settings of which related to your bot
+  Discord:
 
-SettingsEnabled:
-  - EMPHERIAL_MESSAGES
-  - WHITELIST_ROLE
-#  - REMOVE_ROLE
-#  - BLACKLIST
-  - CHANGE_NAME
-  - SEND_DM
-#  - SEND_WELCOME_MESSAGE
-  - CONFIRM_MENU
-#  - OUR_WHITELIST_SYSTEM
-#  - REACTIONS_WHITELIST
-  - SLASHCOMMANDS_REGEX_CHECK
-#  - FLOODGATE_BEDROCK
-  - LINKING
-  - REMOVE_LEFT_USERS
-# - LOGGING
-# - LINK_NAME_CHANGE
-# - UNLINK_NAME_CHANGE
-# - LOGIN_CONTROL_PANEL
-# ① EMPHERIAL_MESSAGES: Defines will all messages written in whitelist channel be deleted in certain time
-# ② WHITELIST_ROLE: Defines will user get 'RoleID' when he was whitelisted
-# ③ REMOVE_ROLE: Defines will user lose 'RomoveRoleID' when he was whitelisted
-# ④ BLACKLIST: Defines will plugin use blacklist feature
-# ⑤ CHANGE_NAME: Defines will user's nickname be changes when he was whitelisted
-# ⑥ SEND_DM: Defines will DirectMessage be sent to user when he was whitelisted
-# ⑦ SEND_WELCOME_MESSAGE: Defines will bot send message into 'GlobalChannelID' channel when user was whitelisted
-# ⑧ CONFIRM_MENU: Defines will confirmation menu will send to user when he's trying to whitelist
-# ⑨ OUR_WHITELIST_SYSTEM: Defines will plugin use Nickname-based whitelist system. Version: 0.7A2803 (Include that version if you will report any whitelist bug)
-# ⑩ REACTIONS_WHITELIST: Defines will plugin add/remove 'ReactionsRoleID' when user click on button
-# ⑪ SLASHCOMMANDS_REGEX_CHECK: Defines will plugin check nickname before adding/removing it to/from whitelist
-# ⑫ FLOODGATE_BEDROCK: Defines will plugin add bedrock player to whitelist
-# ⑬ LINKING: Defines will linking system be turned on and can players(users) use its commands. Version: 0.2A2803 (Include that version if you will report any linking bug)
-# ⑭ REMOVE_LEFT_USERS: Defines will we un-whitelist and unlink users who left your Discord server.
-# ⑮ LOGGING: Defines will plugin send whitelist/linking/check logs in channel after user got whitelisted/linked/checked account. Uses 'LogsChannelID' as logs channel
-# ⑯ LINK_NAME_CHANGE: Defines will linked discord user's nickname changed like his Minecraft nickname
-# ⑰ UNLINK_NAME_CHANGE: Defines will user's nickname changed to his default when he unlinked his account
-# ⑱ LOGIN_CONTROL_PANEL: Defines will linked user have to verify his connection every X hour(s) via Discord.
+    # Discord settings that will affect on Bot
+    Bot:
 
-###          ###
+      # Settings of Bot Activity (like what he's playing right now)
+      Activity:
 
-### EXPERIMENTAL ###
+        # Defines will plugin change bot's status and activity
+        Status&Activities: true
 
-SessionTime: 12
-# Every X hour(s) user needs to verify his connection
+        # Defines which type of status bot will use.
+        # Available types(DND = Do Not Disturb):
+        # Online | DND | Idle | Invisible
+        Status: Online
 
-LoginSettings:
-  - COMPARE_IP
-  - CHECK_SESSION_TIME
-#  - ALWAYS_ON
-# COMPARE_IP: Defines will plugin be compare player's ips and if they are not equal - request verify connection. With SessionTime works, when user reached max. of his SessionTime
-# CHECK_SESSION_TIME: Defines will plugin count player's SessionTime and clear it when it reaches max. (>SessionTime)
-# ALWAYS_ON: WARNING! Experimental! May cause some bugs, cuz developer not designed it in start of developing. Defines will all features of LoginSettings be turned on. Requires all features in this section needs to be turned off except this one.
+        # Defines which type of activity bot will use.
+        # Available types: Playing | Listening | Watching | Streaming | Competing
+        Type: Playing
 
-###              ###
+        # Complements type, like: "Playing Minecraft server | 2 players online"
+        # This feature can count online players, so it
+        # supports vanish plugins to not count invisible players.
+        # Detected and supported vanish plugins you can find
+        # at the end of the config.
+        # %0 - players online on the server
+        Text: "Minecraft Server | %0 players online"
 
-Version: 4.20-ASTER
-# Thanks for downloading our plugin! <3
-# Do not change this!
+        # Works only with 'Streaming' type!
+        # Grants user open this URL while bot "streaming" something.
+        # For example, works with 'https://www.twitch.tv/user' & 'https://www.youtube.com/watch?v=ID'
+        URL: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+  # Section, settings of which related to Discord-part of plugin
+  Plugin:
+
+    # Settings which contains all IDs of channels that plugin will use
+    ChannelID:
+
+      # This channel will be defined as channel where
+      # users can type their nickname to be whitelisted
+      Whitelist: "WhitelistChannelID"
+
+      # That channel will be defined as channel where
+      # bot will send welcome messages for whitelisted users
+      # Required for WHITELIST_WELCOME_MESSAGE (7) feature
+      Global: "GlobalChannelID"
+
+      # This channel will be defined as channel where
+      # administrators of Discord-server will receive logs
+      # (for example, whitelisting, linking or check)
+      # Required for LOGGING (16) feature.
+      Logs: "LogsChannelID"
+
+    # Settings which contains all IDs of roles that plugin will use
+    RoleID:
+
+      # [Discord Role] Plugin will check for role with this ID(s) when user uses '/whitelist' SlashCommand
+      # Grants access to use '/whitelist' SlashCommand
+      # Use 'disable' tag to force plugin ignore this role(s)
+      # You can use many roles as list as previewed above
+      Admin:
+        - "123456789123456789"
+        - "123456789123456789"
+
+      # RoleID(s) related with whitelisting process
+      Whitelist:
+
+        # [Discord Role] Plugin will add role(s) with this ID(s) when user added in whitelist
+        # Use 'disable' tag to force plugin ignore this role(s)
+        # You can use many roles as list as previewed below
+        Add:
+          - "123456789123456789"
+          - "123456789123456789"
+          - "123456789123456789"
+
+        # [Discord Role] Plugin will remove role(s) with this ID(s) when user was whitelisted
+        # Use 'disable' tag to force plugin ignore this role(s) as previewed below
+        # You can use many roles as list as previewed above
+        Remove:
+          - "disable"
+
+      # RoleID(s) related with linking process
+      Link:
+
+        # [Discord Role] Plugin will add role(s) with this ID(s) when user linked his accounts
+        # [] Role(s) will be removed when user unlink his accounts
+        # Use 'disable' tag to force plugin ignore this role(s)
+        # You can use many roles as list as previewed below
+        Add:
+          - "123456789123456789"
+          - "123456789123456789"
+          - "123456789123456789"
+
+        # [Discord Role] Plugin will remove role(s) with this ID(s) when user linked his accounts
+        # [] Role(s) will be added back when user unlink his accounts
+        # Use 'disable' tag to force plugin ignore this role(s) as previewed below
+        # You can use many roles as list as previewed above
+        Remove:
+          - "disable"
+
+      # RoleID(s) related with reaction process
+      Reactions:
+
+        # [Discord Role] Plugin will add role(s) with this ID(s) when player click on ReactionButton
+        # Use 'disable' tag to force plugin ignore this role(s) as previewed below
+        # You can use many roles as list as previewed above
+        Add:
+          - "disable"
+
+        # [Discord Role] Plugin will remove role(s) with this ID(s) when player click on ReactionButton
+        # Use 'disable' tag to force plugin ignore this role(s) as previewed below
+        # You can use many roles as list as previewed above
+        Remove:
+          - "disable"
+
+      # RoleID(s) related with whitelist/linking process
+      Require:
+
+        # [Discord Role] Plugin will require role(s) with this ID(s) to whitelist user
+        # Use 'disable' tag to force plugin ignore this role as previewed below
+        # You can use many roles as list as previewed above
+        Whitelist:
+          - "disable"
+
+        # [Discord Role] Plugin will require role(s) with this ID(s) to link accounts
+        # Use 'disable' tag to force plugin ignore this role as previewed below
+        # You can use many roles as list as previewed above
+        Link:
+          - "disable"
+
+    # Settings related to blacklist
+    Blacklist:
+
+      # Plugin will restrict these nicknames to be whitelisted
+      Nickname:
+        - "TestNick"
+        - "Test_Nick2"
+
+      # Plugin will check user for his Discord Account ID,
+      # and if this list contains this ID,
+      # he will be restricted to be whitelisted
+      ID:
+        - "123456789123456789"
+        - "123456789123456789"
+
+
+# Section, where you can turn on/off every feature of plugin,
+# configure some of them and read small description of every
+# feature, configure EWhitelist and Vanish support
+Plugin:
+
+  # Section where you can configure main and most features of plugin
+  # Please, read carefully all comments, even if there is too much them
+  Settings:
+
+    # Special symbol for 'BEDROCK_SUPPORT' feature
+    # User will be able to place this symbol before his nickname
+    # in message and plugin will add his nickname
+    # with this symbol before nickname in whitelist
+    # /!\ It's not actual support of GeyserMC, patience and
+    # it will be added in the future.
+    BedrockSymbol: "."
+
+    # Type of message that will be used as Welcome Message.
+    # This will affect on message style.
+    # Available types: EMBED | TEXT
+    Message:
+      Welcome:
+        Type: EMBED
+
+    # !!! ❘ PLEASE, 𝐃𝐎 𝐍𝐎𝐓 ENABLE 2 SAME FEATURES AT SAME MOMENT - IT WILL FORCE RUN THEM TWICE!
+    # Documentation of how-to-use this system:
+    #
+    # 1 ❘ Section 'Plugin.Settings.Enabled' contains all enabled features that plugin will use as list
+    # 2 ❘ To enable some feature, read all description texted below, then scroll down in 'Enabled' section
+    #     and add line with that feature in this list feature you need. This will look something like this:
+    #     | ...:                     |
+    #     | Enabled:                 |
+    #     |   - "EPHEMERAL_MESSAGES" |
+    #     |   - "EWHITELIST"         |
+    #
+    # 3 ❘ To disable any feature, you just need remove line with this feature. This will look something like this:
+    #     | ...:                     |
+    #     | Enabled:                 |
+    #     |   - "EPHEMERAL_MESSAGES" |
+    #     |                          |
+    #     As you can see, feature named "EWHITELIST" does not enabled right now  as shown above
+    #
+    # By default almost some features commented to disable them, you can enable them by removing '#'
+    # before '-', or just remove this line(to be honest, unnecessary) if you don't need them.
+    # We hope this mini-tutorial was helpful for you.
+    #
+    # You can see all this on our wiki with screenshots
+    # https://windstudio.gitbook.io/discordwhitelist/step-by-step-setting/plugins-features-and-config#enabled
+    # Description of every feature listed below:
+    #
+    # 1 > EPHEMERAL_MESSAGES: Defines will all messages(except logs) related to plugin be deleted after some time
+    # 2 > WHITELIST_ROLE_ADD: Defines will user get role when he was whitelisted. Uses 'RoleID.Whitelist.Add' as role
+    # 3 > WHITELIST_ROLE_REMOVE: Defines will user lose role when he was whitelisted. Uses 'RoleID.Whitelist.Remove' as role
+    # 4 > BLACKLIST: Defines will blacklist feature be enabled
+    # 5 > WHITELIST_CHANGE_NAME: Defines will user's nickname be changed to when he was whitelisted
+    # 6 > WHITELIST_DM: Defines will Direct Message be sent to user when he was whitelisted
+    # 7 > WHITELIST_WELCOME_MESSAGE: Defines will bot send message into 'ChannelID.Global' channel when user was whitelisted
+    # 8 > WHITELIST_CONFIRMATION_MENU: Defines will confirmation menu will send to user when he's trying being whitelisted
+    # 9 > EWHITELIST: Defines will plugin use own Nickname-based whitelist system
+    # 10 > REACTIONS: Defines will plugin add 'RoleID.Reactions.Add'/remove 'RoleID.Reactions.Remove' when user click on special button
+    # 11 > REQUIRE_ROLE: Defines will plugin require role(s) to whitelist 'RoleID.Require.Whitelist'/link user 'RoleID.Require.Link'
+    # 12 > REGEX_CHECK: Defines will plugin check nickname before adding/removing it to/from whitelist (for SlashCommand)
+    # 13 > BEDROCK_SUPPORT: Defines will plugin allow use 'BedrockSymbol' before nickname and add native support for Geyser(Floodgate)
+    # 14 > LINKING: Defines will linking system be turned on and can players(users) use its commands
+    # 15 > LINKING_LEFT_USERS_REMOVE: Defines, will plugin unlink user's accounts and remove his from whitelist when he left from Discord server
+    # 16 > LINKING_NAME_CHANGE: Defines will linked discord user's nickname changed like his Minecraft nickname (or changed when he unlinked his account)
+    # 17 > LOGGING: Defines will plugin send logs(for whitelisting/linking/checking) in channel. Uses 'ChannelID.Logs' as logs channel
+    Enabled:
+      - "EPHEMERAL_MESSAGES"
+      - "WHITELIST_ROLE_ADD"
+      #- "WHITELIST_ROLE_REMOVE"
+      - "WHITELIST_CHANGE_NAME"
+      - "WHITELIST_DM"
+      - "WHITELIST_CONFIRMATION_MENU"
+      - "EWHITELIST"
+      #- "REACTIONS"
+      - "BLACKLIST"
+      - "REGEX_CHECK"
+      #- "BEDROCK_SUPPORT"
+      #- "LOGGING"
+      #- "LINKING_NAME_CHANGE"
+      #- "REQUIRE_ROLE"
+      - "LINKING"
+      - "LINKING_LEFT_USERS_REMOVE"
+
+    # EWhitelist is nickname-based type of whitelist, which is
+    # implemented directly into plugin. You can configure it
+    # as you want and as possible.
+    EWhitelist:
+
+      # Defines will EWhitelist be enabled (not overrides setting from 'Plugin.Settings.Enabled' section)
+      # Can be changed via the command /ewl enable/disable whitelist
+      Enabled: false
+
+      # Defines will Maintenance be turned on (only Administrators who was added in EWhitelist will be able to join)
+      # Can be changed via the command /ewl enable/disable service
+      Maintenance: false
+
+      # Defines, will plugin do a synchronization between EWhitelist and default whitelist (add/remove player)
+      # Currently does not synchronize exist players in both systems, only new players
+      Sync: true
+
+      # Messages that EWhitelist will use
+      Message:
+
+        # EWhitelist kick message when player trying to join the server while he(player) is blacklisted
+        Blacklisted: "&cSorry, but you are blacklisted on this server!"
+
+        # EWhitelist kick message when player trying join the server while EWhitelist Maintenance mode turned on
+        OnMaintenance: "&cSorry, but this server is on maintenance!"
+
+        # EWhitelist kick message when not whitelisted player trying to join
+        NotWhitelisted: "&cSorry, but you need to be whitelisted in order to play on this server!"
+
+  # Section where you can configure Vanish support for plugin
+  # This setting is critically important for you if
+  # you're using Status&Activities feature, so now,
+  # if you configured this, plugin will ignore
+  # vanished players when count online players
+  Vanish:
+
+    # The list of detected Vanish plugins.
+    # You don't have to change it, because it will be
+    # updated on every plugin startup
+    Detected:
+      - None
+
+    # The list of supported Vanish plugins
+    # which support will be implemented
+    # in plugin, so plugin will use their
+    # API to detect vanished players.
+    # To enable Vanish plugin support just copy
+    # one of plugin's name in 'Detected' section
+    # above and paste it here as a list, example:
+    # Supported:
+    #   - SuperVanish
+    Supported:
+      - None

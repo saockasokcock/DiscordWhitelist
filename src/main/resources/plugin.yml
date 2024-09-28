@@ -1,8 +1,11 @@
 main: com.windstudio.discordwl.Main
 name: DiscordWhitelist
-author: WINDStudio
+description: Modern server security automation
+author: "WIND STUDIO"
 version: ${project.version}
-folia-supported: true
+api-version: 1.14
+folia-supported: false
+softdepend: [SuperVanish, PremiumVanish, Essentials, CMI, AdvancedVanish, SayanVanish]
 commands:
   link:
     usage: /<command>
@@ -10,11 +13,11 @@ commands:
   account:
     usage: /<command>
     description: Command to get information about your linked account
-  owhitelist:
-    aliases: [ owl ]
-    permission: [ whitelist.admin ]
+  ewhitelist:
+    aliases: [ ewl ]
+    permission: [ dswl.admin ]
     description: Whitelist management command
 permissions:
-  whitelist.admin:
+  dswl.admin:
     description: Allows to use all commands
     default: op

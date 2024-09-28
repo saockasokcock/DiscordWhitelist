@@ -93,13 +93,13 @@ MessageError: "You cannot use this buttons!"
 ### WHITELIST ###
 ### VERSION: 0.7A2803 (Include that version if you will report any whitelist bug)
 
-WhitelistUsage: "&fUsage: &6/whitelist <on/off/lock_on/lock_off/add/add_administrator/remove/remove_administrator/message/lock_message/list/list_administrators>"
+WhitelistUsage: "&fUsage: &6/whitelist <enable/disable> (whitelist/service) / <add/remove> (player/admin) (nickname) / <message> (whitelist/blacklist/service) / <list> (players/admins)"
 # Whitelist: command usage
 
 WhitelistList: "&fList of players(%p): &6%s"
 # Whitelist: shows the list of all whitelisted players. %s - player nicknames!
 
-AdministratorsList: "&fList of administrators(%p): &6%s"
+AdministratorsList: "&fList of adminis(%p): &6%s"
 # Whitelist: shows the list of all administrators. %s - administrator nicknames!
 
 WhitelistOn: "&fWhitelist has turned &aon"
@@ -452,5 +452,9 @@ LinkingCheckNotFoundTitle: ":closed_book: NOT FOUND"
 
 LinkingCheckNotFoundDescription: "We cant find information about this player! Either he not linked account, either you provided information inaccurate"
 # Description for error embed message
+
+RequireRoleWhitelist: "You can't be whitelisted because have not enough roles for this"
+
+RequireRoleLink: "You can't link your accounts because have not enough roles for this"
 
 # Language file version: 1.3 (Include this version where you report translation issue)

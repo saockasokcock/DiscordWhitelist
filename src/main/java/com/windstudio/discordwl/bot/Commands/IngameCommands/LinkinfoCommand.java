@@ -20,7 +20,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class LinkinfoCommand implements CommandExecutor {
-    private final Main plugin;
+    public Main plugin;
     public LinkinfoCommand(Main plugin) {
         this.plugin = plugin;
     }
@@ -30,12 +30,16 @@ public class LinkinfoCommand implements CommandExecutor {
             sender.sendMessage(ColorManager.translate("&cOnly players can execute this command!"));
             return true;
         }
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+                    com.windstudio.discordwl.API.InGameCommandUsedEvent event = new com.windstudio.discordwl.API.InGameCommandUsedEvent(sender, command.getName(), command);
+                    Bukkit.getServer().getPluginManager().callEvent(event);
+                });
         Player player = (Player) sender;
         if (command.getName().equalsIgnoreCase("account")) {
             String playerUUID = player.getUniqueId().toString();
             new BukkitRunnable() {
                 public void run() {
-                    switch (getString("DataBaseType")) {
+                    switch (getString("Database.Type")) {
                         case "SQLite":
                             DoSQLite(playerUUID, player);
                             break;
@@ -53,7 +57,7 @@ public class LinkinfoCommand implements CommandExecutor {
         if (plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
             PreparedStatement preparedStatement = null;
             try {
-                preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE uuid=?");
+                preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE uuid=?");
                 preparedStatement.setString(1, playerUUID);
                 ResultSet resultSet = preparedStatement.executeQuery();
                 List<String> list = plugin.getLanguageManager().getStringList("LinkingInfo");
@@ -80,7 +84,7 @@ public class LinkinfoCommand implements CommandExecutor {
             PreparedStatement preparedStatement = null;
             ResultSet resultSet = null;
             try {
-                preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE uuid=?");
+                preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE uuid=?");
                 preparedStatement.setString(1, player.getUniqueId().toString());
                 resultSet = preparedStatement.executeQuery();
                 List<String> list = plugin.getLanguageManager().getStringList("LinkingInfo");
@@ -107,5 +111,5 @@ public class LinkinfoCommand implements CommandExecutor {
     public void sendMessage(CommandSender sender, String path, String... placeholder) {
         sender.sendMessage(String.format(ColorManager.translate(path), (Object[])placeholder));
     }
-        public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+        public String getString(String path) { return plugin.getConfig().getString(path); }
 }

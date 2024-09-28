@@ -20,26 +20,11 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
-import static com.windstudio.discordwl.Main.plugin;
 import static org.bukkit.Bukkit.getServer;
 
 public class DiscordLeftEvent extends ListenerAdapter implements Listener {
     private final Main plugin;
-    /*public static HashMap<String, String> leftUser = new HashMap<String, String>();
-    public static HashMap<Member, String> leftMember = new HashMap<Member, String>();
-    public static HashMap<String, String> memberNickname = new HashMap<>();*/
 
-    /*@Override
-    public void onMessageReceived(@NotNull MessageReceivedEvent e) {
-        if (e.getMessage().getAuthor().isBot() || e.isWebhookMessage()) { return; }
-        Member member = e.getMember();
-        if (getStringList("SettingsEnabled").contains("CHANGE_NAME") && getStringList("SettingsEnabled").contains("REMOVE_LEFT_USERS")) {
-            assert member != null;
-            if (member.getNickname() != null) {
-            memberNickname.put(member.getId(), member.getNickname());
-            }
-        }
-    }*/
     public DiscordLeftEvent(Main plugin) {
         this.plugin = plugin;
     }
@@ -48,21 +33,22 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
         if (e.getMember() instanceof Webhook) { return; }
         final Member member = e.getMember();
         String memberId = member.getId().toString();
-        if (getStringList("SettingsEnabled").contains("REMOVE_LEFT_USERS")) {
+        if (getStringList("Plugin.Settings.Enabled").contains("LINKING_LEFT_USERS_REMOVE")) {
             member.modifyNickname(null).queue();
-            switch (getString("DataBaseType")) {
+            switch (getString("Database.Type")) {
+                default:
                 case "SQLite":
                     DoSQLite(memberId);
                     break;
                 case "MySQL":
                     DoMySQL(memberId);
                     break;
-                default:
-                    DoSQLite(memberId);
-                    break;
             }
         }
-        // System.out.println(leftUser.get(member));
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            com.windstudio.discordwl.API.DiscordLeftEvent event = new com.windstudio.discordwl.API.DiscordLeftEvent(e.getMember().getNickname(), e.getUser());
+            Bukkit.getServer().getPluginManager().callEvent(event);
+        });
     }
     public void DoSQLite(String memberId) {
         new BukkitRunnable() {
@@ -71,7 +57,7 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
                 if (plugin.getClassManager().getUserdata().discordUserProfileExists(memberId)) {
                     PreparedStatement preparedStatement = null;
                     try {
-                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE discord_id=?");
+                        preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE discord_id=?");
                         preparedStatement.setString(1, memberId);
                         ResultSet resultSet = preparedStatement.executeQuery();
                         while (resultSet.next()) {
@@ -84,9 +70,9 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
                             Bukkit.getScheduler().runTask(plugin, new Runnable() {
                                 public void run() {
                                     player.setWhitelisted(false);
-                                    if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
+                                    if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
                                         plugin.getClassManager().getSqLiteWhitelistData().removePlayer("nickname", nickname);
-                                        plugin.getData().save();
+                                        
                                     }
                                     if (player.isOnline()) {
                                         player.kickPlayer(plugin.getLanguageManager().get("LeftDiscordKickReason"));
@@ -109,7 +95,7 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
                 if (plugin.getClassManager().getUserdata().discordUserProfileExists(memberId)) {
                     PreparedStatement preparedStatement = null;
                     try {
-                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE discord_id=?");
+                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE discord_id=?");
                         preparedStatement.setString(1, memberId);
                         ResultSet resultSet = preparedStatement.executeQuery();
                         while (resultSet.next()) {
@@ -122,9 +108,9 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
                             Bukkit.getScheduler().runTask(plugin, new Runnable() {
                                 public void run() {
                                     player.setWhitelisted(false);
-                                    if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
+                                    if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
                                         plugin.getClassManager().getSqLiteWhitelistData().removePlayer("nickname", nickname);
-                                        plugin.getData().save();
+                                        
                                     }
                                     if (player.isOnline()) {
                                         player.kickPlayer(plugin.getLanguageManager().get("LeftDiscordKickReason"));
@@ -146,5 +132,5 @@ public class DiscordLeftEvent extends ListenerAdapter implements Listener {
         throw new IllegalArgumentException();
     }
     public List<String> getStringList(String path) { return plugin.getConfig().getStringList(path); }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
 }

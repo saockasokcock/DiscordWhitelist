@@ -21,9 +21,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 public class PlayerEventHandler implements Listener {
-    String guild = Main.plugin.getConfig().getString("GuildID");
+    public Main plugin;
     JDA jda;
-    private final Main plugin;
     public PlayerEventHandler(JDA jda, Main plugin) {
         this.jda = jda;
         this.plugin = plugin;
@@ -34,7 +33,7 @@ public class PlayerEventHandler implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
-                switch (getString("DataBaseType")) {
+                switch (getString("Database.Type")) {
                     case "SQLite":
                         if (plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
                             LinkingCommand.verifiedmembers.add(e.getPlayer().getUniqueId());
@@ -50,6 +49,10 @@ public class PlayerEventHandler implements Listener {
                 }
             }
         }.runTaskAsynchronously(plugin);
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            com.windstudio.discordwl.API.PlayerJoinEvent event = new com.windstudio.discordwl.API.PlayerJoinEvent(e.getPlayer());
+            Bukkit.getServer().getPluginManager().callEvent(event);
+        });
     }
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
@@ -57,7 +60,7 @@ public class PlayerEventHandler implements Listener {
         new BukkitRunnable() {
             @Override
             public void run() {
-                switch (getString("DataBaseType")) {
+                switch (getString("Database.Type")) {
                     case "SQLite":
                         if (plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
                             LinkingCommand.verifiedmembers.remove(e.getPlayer().getUniqueId());
@@ -77,13 +80,17 @@ public class PlayerEventHandler implements Listener {
                 }
             }
         }.runTaskAsynchronously(plugin);
+        Bukkit.getScheduler().runTask(plugin, ()-> {
+            com.windstudio.discordwl.API.PlayerQuitEvent event = new com.windstudio.discordwl.API.PlayerQuitEvent(e.getPlayer());
+            Bukkit.getServer().getPluginManager().callEvent(event);
+        });
     }
     public void DoSQLite(Player player) {
         String playerUUID = player.getUniqueId().toString();
-        if (getStringList("SettingsEnabled").contains("REMOVE_LEFT_USERS") && plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
+        if (getStringList("Plugin.Settings.Enabled").contains("LINKING_LEFT_USERS_REMOVE") && plugin.getClassManager().getUserdata().userProfileExists(playerUUID)) {
             PreparedStatement preparedStatement = null;
             try {
-                preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Linking") + " WHERE uuid=?");
+                preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Linking") + " WHERE uuid=?");
                 preparedStatement.setString(1, playerUUID);
                 ResultSet resultSet = preparedStatement.executeQuery();
                 while (resultSet.next()) {
@@ -92,11 +99,11 @@ public class PlayerEventHandler implements Listener {
                     String discord = resultSet.getString("discord");
                     String did = resultSet.getString("discord_id");
                     String date = resultSet.getString("linking_date");
-                    if (jda.getGuildById(getString("GuildID")).getMemberById(did) == null) {
+                    if (jda.getGuildById(getString("Service.ServerID")).getMemberById(did) == null) {
                         player.setWhitelisted(false);
-                        if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
+                        if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
                             plugin.getClassManager().getSqLiteWhitelistData().removePlayer("nickname", nickname);
-                            plugin.getData().save();
+                            
                         }
                         player.kickPlayer(ColorManager.translate(plugin.getLanguageManager().get("LeftDiscordKickReason")));
                         plugin.getClassManager().getUserdata().deleteInformationFromUserProfile("uuid", player.getUniqueId().toString());
@@ -110,11 +117,11 @@ public class PlayerEventHandler implements Listener {
     }
     public void DoMySQL(Player player) {
         String playerUUID = player.getUniqueId().toString();
-                if (getStringList("SettingsEnabled").contains("REMOVE_LEFT_USERS") && plugin.getClassManager().getUserdataMySQL().userProfileExists(playerUUID)) {
+                if (getStringList("Plugin.Settings.Enabled").contains("LINKING_LEFT_USERS_REMOVE") && plugin.getClassManager().getUserdataMySQL().userProfileExists(playerUUID)) {
                     PreparedStatement preparedStatement = null;
                     ResultSet resultSet = null;
                     try {
-                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("MySQL_TableName_Linking") + " WHERE uuid=?");
+                        preparedStatement = plugin.getPoolManager().getConnection().prepareStatement("SELECT * FROM " + getString("Database.Settings.MySQL.TableName.Linking") + " WHERE uuid=?");
                         preparedStatement.setString(1, playerUUID);
                         resultSet = preparedStatement.executeQuery();
                         while (resultSet.next()) {
@@ -123,11 +130,11 @@ public class PlayerEventHandler implements Listener {
                             String discord = resultSet.getString("discord");
                             String did = resultSet.getString("discord_id");
                             String date = resultSet.getString("linking_date");
-                            if (jda.getGuildById(getString("GuildID")).getMemberById(did) == null) {
+                            if (jda.getGuildById(getString("Service.ServerID")).getMemberById(did) == null) {
                                 player.setWhitelisted(false);
-                                if (getStringList("SettingsEnabled").contains("OUR_WHITELIST_SYSTEM")) {
+                                if (getStringList("Plugin.Settings.Enabled").contains("EWHITELIST")) {
                                     plugin.getClassManager().getSqLiteWhitelistData().removePlayer("nickname", nickname);
-                                    plugin.getData().save();
+                                    
                                 }
                                 player.kickPlayer(ColorManager.translate(plugin.getLanguageManager().get("LeftDiscordKickReason")));
                                 plugin.getClassManager().getUserdata().deleteInformationFromUserProfile("uuid", player.getUniqueId().toString());
@@ -141,8 +148,6 @@ public class PlayerEventHandler implements Listener {
                     }
                 }
     }
-    public List<String> getStringList(String path){
-        return Main.plugin.getConfig().getStringList(path);
-    }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public List<String> getStringList(String path){ return plugin.getConfig().getStringList(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
 }

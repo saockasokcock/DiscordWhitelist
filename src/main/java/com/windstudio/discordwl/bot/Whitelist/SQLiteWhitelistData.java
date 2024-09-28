@@ -16,10 +16,14 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class SQLiteWhitelistData {
+    public Main plugin;
+    public SQLiteWhitelistData(Main plugin) {
+        this.plugin = plugin;
+    }
     public boolean userPlayerExists(String playerNickname) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Whitelist") + " WHERE nickname=?");
+            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Whitelist") + " WHERE nickname=?");
             preparedStatement.setString(1, playerNickname);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
@@ -27,14 +31,14 @@ public class SQLiteWhitelistData {
             }
             resultSet.close(); preparedStatement.close();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
         return false;
     }
     public String getPlayerType(String condition, String conditionNew, String whatYouNeedExactly) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Whitelist") + " WHERE "+condition+"=?");
+            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Whitelist") + " WHERE "+condition+"=?");
             preparedStatement.setString(1, conditionNew);
             ResultSet resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
@@ -46,17 +50,17 @@ public class SQLiteWhitelistData {
             }
             resultSet.close(); preparedStatement.close();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
         return null;
     }
     public ArrayList<String> getPlayers() {
         PreparedStatement preparedStatement = null;
+        ArrayList<String> array = new ArrayList<>();
         try {
-            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Whitelist") + " WHERE player_type=?");
+            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Whitelist") + " WHERE player_type=?");
             preparedStatement.setString(1, "player");
             ResultSet resultSet = preparedStatement.executeQuery();
-            ArrayList<String> array = new ArrayList<>();
             while (resultSet.next()) {
                 String name = resultSet.getString("nickname");
                 array.add(name);
@@ -64,14 +68,14 @@ public class SQLiteWhitelistData {
             resultSet.close(); preparedStatement.close();
             return array;
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
         return null;
     }
     public ArrayList<String> getAdministrators() {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("SQLiteTableName_Whitelist") + " WHERE player_type=?");
+            preparedStatement = SQLite.con.prepareStatement("SELECT * FROM " + getString("Database.Settings.SQLite.TableName.Whitelist") + " WHERE player_type=?");
             preparedStatement.setString(1, "administrator");
             ResultSet resultSet = preparedStatement.executeQuery();
             ArrayList<String> array = new ArrayList<>();
@@ -82,7 +86,7 @@ public class SQLiteWhitelistData {
             resultSet.close(); preparedStatement.close();
                 return array;
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
         return null;
     }
@@ -91,34 +95,34 @@ public class SQLiteWhitelistData {
         java.sql.Date converted = new java.sql.Date(date.getTime());
         SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         try {
-            preparedStatement = SQLite.con.prepareStatement("INSERT INTO " + getString("SQLiteTableName_Whitelist") +"(nickname, player_type, whitelist_date) VALUES (?, ?, ?)");
+            preparedStatement = SQLite.con.prepareStatement("INSERT INTO " + getString("Database.Settings.SQLite.TableName.Whitelist") +"(nickname, player_type, whitelist_date) VALUES (?, ?, ?)");
             preparedStatement.setString(1, playerNickname);
             preparedStatement.setString(2, playerType);
             preparedStatement.setString(3, format.format(converted));
             preparedStatement.executeUpdate(); preparedStatement.close();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
     }
     public void removePlayer(String condition, String placeholderSet) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = SQLite.con.prepareStatement("DELETE FROM " + getString("SQLiteTableName_Whitelist") +" WHERE " + condition +"=?");
+            preparedStatement = SQLite.con.prepareStatement("DELETE FROM " + getString("Database.Settings.SQLite.TableName.Whitelist") +" WHERE " + condition +"=?");
             preparedStatement.setString(1, placeholderSet);
             preparedStatement.executeUpdate(); preparedStatement.close();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
     }
     public void updatePlayerInfo(String column, String newInformation, String condition, String placeholderSet) {
         PreparedStatement preparedStatement = null;
         try {
-            preparedStatement = SQLite.con.prepareStatement("UPDATE " + getString("SQLiteTableName_Whitelist") +" SET " + column + "=" + newInformation +" WHERE " + condition +"=?");
+            preparedStatement = SQLite.con.prepareStatement("UPDATE " + getString("Database.Settings.SQLite.TableName.Whitelist") +" SET " + column + "=" + newInformation +" WHERE " + condition +"=?");
             preparedStatement.setString(1, placeholderSet);
             preparedStatement.executeUpdate(); preparedStatement.close();
         } catch (SQLException e) {
-            Main.console.sendMessage(e.toString());
+            plugin.getConsole().sendMessage(e.toString());
         }
     }
-    public static String getString(String path) { return Main.getPlugin().getConfig().getString(path); }
+    public String getString(String path) { return plugin.getConfig().getString(path); }
 }
