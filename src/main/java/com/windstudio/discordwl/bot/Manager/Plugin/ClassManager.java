@@ -4,6 +4,7 @@ import com.windstudio.discordwl.Main;
 import com.windstudio.discordwl.bot.Commands.IngameCommands.LinkingCommand;
 import com.windstudio.discordwl.bot.Linking.UserdataMySQL;
 import com.windstudio.discordwl.bot.Linking.UserdataSQLite;
+import com.windstudio.discordwl.bot.LoginPanel.InformationSQLite;
 import com.windstudio.discordwl.bot.Manager.Discord.PresenceManager;
 import com.windstudio.discordwl.bot.Whitelist.MySQLWhitelistData;
 import com.windstudio.discordwl.bot.Whitelist.SQLiteWhitelistData;
@@ -16,6 +17,7 @@ public class ClassManager {
     private MySQLWhitelistData mySqlWhitelistData;
     private PresenceManager presenceManager;
     private LinkingCommand linkingCommand;
+    private InformationSQLite informationSQLite;
     public ClassManager(Main plugin) {
         this.plugin = plugin;
         presenceManager = new PresenceManager(plugin);
@@ -24,6 +26,7 @@ public class ClassManager {
         mySqlWhitelistData = new MySQLWhitelistData(plugin);
         userdataSQLite = new UserdataSQLite(plugin);
         sqLiteWhitelistData = new SQLiteWhitelistData(plugin);
+        informationSQLite = new InformationSQLite();
     }
     public UserdataSQLite getUserdata() { return userdataSQLite; }
     public UserdataMySQL getUserdataMySQL() { return userdataMySQL; }
@@ -32,4 +35,7 @@ public class ClassManager {
     public PresenceManager getPresenceManager() { return presenceManager; }
     public LinkingCommand getLinkingCommand() { return linkingCommand; }
     public String getString(String path) { return plugin.getConfig().getString(path); }
+    public InformationSQLite getInformationSQLite() {
+        return informationSQLite;
+    }
 }

@@ -12,7 +12,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.sayandev.sayanvanish.api.SayanVanishAPI;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,11 +50,11 @@ public class PlayerManager implements Listener {
                     plugin.getPresenceManager().Activities(plugin.getReadyEvent());
                     return;
                 }
-                case "SayanVanish" -> {
-                        if (!SayanVanishAPI.getInstance().isVanished(player.getUniqueId())) getOnlinePlayers().add(player);
-                    plugin.getPresenceManager().Activities(plugin.getReadyEvent());
-                    return;
-                }
+//                case "SayanVanish" -> {
+//                        if (!SayanVanishBukkitAPI.bukkitUser(player.getUniqueId()).isVanished()) getOnlinePlayers().add(player);
+//                    plugin.getPresenceManager().Activities(plugin.getReadyEvent());
+//                    return;
+//                }
             }
         }
         Bukkit.getScheduler().runTask(plugin, ()-> {
@@ -90,11 +89,11 @@ public class PlayerManager implements Listener {
                     plugin.getPresenceManager().Activities(plugin.getReadyEvent());
                     return;
                 }
-                case "SayanVanish" -> {
-                    if (!SayanVanishAPI.getInstance().isVanished(player.getUniqueId())) getOnlinePlayers().remove(player);
-                    plugin.getPresenceManager().Activities(plugin.getReadyEvent());
-                    return;
-                }
+//                case "SayanVanish" -> {
+//                    if (!SayanVanishBukkitAPI.bukkitUser(player.getUniqueId()).isVanished()) getOnlinePlayers().remove(player);
+//                    plugin.getPresenceManager().Activities(plugin.getReadyEvent());
+//                    return;
+//                }
 
             }
         }

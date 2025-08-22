@@ -1,9 +1,5 @@
 package com.windstudio.discordwl;
 
-import com.earth2me.essentials.EssentialsConf;
-import com.jeff_media.updatechecker.UpdateCheckSource;
-import com.jeff_media.updatechecker.UpdateChecker;
-import com.jeff_media.updatechecker.UserAgentBuilder;
 import com.windstudio.discordwl.bot.Commands.CommandManager;
 import com.windstudio.discordwl.bot.Commands.IngameCommands.LinkinfoCommand;
 import com.windstudio.discordwl.bot.Commands.IngameCommands.LinkingCommand;
@@ -43,10 +39,9 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.sayandev.sayanvanish.api.SayanVanishAPI;
+//import org.sayandev.sayanvanish.bukkit.api.SayanVanishBukkitAPI;
 
 import java.io.File;
 import java.io.IOException;
@@ -146,6 +141,10 @@ public class Main extends JavaPlugin {
             "1.20.5-R0.1-SNAPSHOT",
             "1.20.6-R0.1-SNAPSHOT",
             "1.21-R0.1-SNAPSHOT",
+            "1.21.1-R0.1-SNAPSHOT",
+            "1.21.2-RO.1-SNAPSHOT",
+            "1.21.3-R0.1-SNAPSHOT",
+            "1.21.4-R0.1-SNAPSHOT"
     };
 
     public void onLoad() {
@@ -197,16 +196,16 @@ public class Main extends JavaPlugin {
 
         playerManager = new PlayerManager(this);
 
-        if (plugin.getConfig().getBoolean("Service.Check-Updates") && !Bukkit.getServer().getName().equals("Folia")) {
-            new UpdateChecker(this, UpdateCheckSource.SPIGOT, "97587")
-                    .setDownloadLink("https://www.spigotmc.org/resources/discord-whitelist-third-generation.97587/")
-                    .setChangelogLink("https://www.spigotmc.org/resources/discord-whitelist-third-generation.97587/updates")
-                    .setNotifyOpsOnJoin(true)
-                    .setNotifyByPermissionOnJoin("dswl.admin")
-                    .setUserAgent(new UserAgentBuilder().addPluginNameAndVersion())
-                    .checkEveryXHours(3)
-                    .checkNow();
-        }
+//        if (plugin.getConfig().getBoolean("Service.Check-Updates") && !Bukkit.getServer().getName().equals("Folia")) {
+//            new UpdateChecker(this, UpdateCheckSource.SPIGOT, "97587")
+//                    .setDownloadLink("https://www.spigotmc.org/resources/discord-whitelist-third-generation.97587/")
+//                    .setChangelogLink("https://www.spigotmc.org/resources/discord-whitelist-third-generation.97587/updates")
+//                    .setNotifyOpsOnJoin(true)
+//                    .setNotifyByPermissionOnJoin("dswl.admin")
+//                    .setUserAgent(new UserAgentBuilder().addPluginNameAndVersion())
+//                    .checkEveryXHours(3)
+//                    .checkNow();
+//        }
 
         if (getResource("license.txt") == null) {
             getConsole().sendMessage(ColorManager.translate("&c › &fFile &clicense.txt &fin plugin jar does not exist. Seems you deleted it. Restore it by rollback it or re-downloading plugin."));
@@ -477,12 +476,12 @@ public class Main extends JavaPlugin {
                         });
                         return;
                     }
-                    case "SayanVanish" -> {
-                        Bukkit.getOnlinePlayers().forEach(player -> {
-                            if (!SayanVanishAPI.getInstance().isVanished(player.getUniqueId())) playerManager.getOnlinePlayers().add(player);
-                        });
-                        return;
-                    }
+//                    case "SayanVanish" -> {
+//                        Bukkit.getOnlinePlayers().forEach(player -> {
+//                            if (!SayanVanishBukkitAPI.bukkitUser(player.getUniqueId()).isVanished()) playerManager.getOnlinePlayers().add(player);
+//                        });
+//                        return;
+//                    }
                 }
             }
             presenceManager.Activities(readyEvent);
@@ -503,8 +502,8 @@ public class Main extends JavaPlugin {
                 Bukkit.getPluginManager().registerEvents(new CMI(this), this); }
             if (Bukkit.getPluginManager().isPluginEnabled("AdvancedVanish")) { detected.add("AdvancedVanish");
                 Bukkit.getPluginManager().registerEvents(new AdvancedVanish(this), this); }
-            if (Bukkit.getPluginManager().isPluginEnabled("SayanVanish")) { detected.add("SayanVanish");
-                Bukkit.getPluginManager().registerEvents(new SayanVanish(this), this); }
+//            if (Bukkit.getPluginManager().isPluginEnabled("SayanVanish")) { detected.add("SayanVanish");
+//                Bukkit.getPluginManager().registerEvents(new SayanVanish(this), this); }
 
             if (detected.isEmpty()) {
                 getConsole().sendMessage(ColorManager.translate(" &c› &fNo one vanish plugin running detected"));
@@ -551,6 +550,10 @@ public class Main extends JavaPlugin {
                 case "1.20.5-R0.1-SNAPSHOT":
                 case "1.20.6-R0.1-SNAPSHOT":
                 case "1.21-R0.1-SNAPSHOT":
+                case "1.21.1-R0.1-SNAPSHOT":
+                case "1.21.2-R0.1-SNAPSHOT":
+                case "1.21.3-R0.1-SNAPSHOT":
+                case "1.21.4-R0.1-SNAPSHOT":
                     getConsole().sendMessage(ColorManager.translate(" &a› &fThis version is supported!&r"));
                     break;
                 default:
@@ -696,7 +699,7 @@ public class Main extends JavaPlugin {
         }
     }
 
-    public Plugin getPlugin() { return plugin; }
+    public static Plugin getPlugin() { return plugin; }
 
     public ConsoleCommandSender getConsole() { return console; }
 

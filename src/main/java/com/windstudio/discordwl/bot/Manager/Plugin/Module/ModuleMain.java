@@ -1,17 +1,12 @@
 package com.windstudio.discordwl.bot.Manager.Plugin.Module;
 
-import com.google.common.io.Files;
 import com.windstudio.discordwl.Main;
 import com.windstudio.discordwl.bot.Manager.Plugin.ColorManager;
 import com.windstudio.discordwl.bot.Manager.Plugin.Module.Manager.ModuleManager;
 import com.windstudio.discordwl.bot.Manager.Plugin.Module.Manager.SuperModuleManager;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 
 import java.io.*;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.Paths;
 
 public class ModuleMain {
 
@@ -50,7 +45,7 @@ public class ModuleMain {
         }
 
         Main.getInstance().getConsole().sendMessage(ColorManager.translate("&e › &fLoading modules..."));
-        moduleManager = (ModuleManager) new SuperModuleManager(modulesFolder);
+        moduleManager = new SuperModuleManager(modulesFolder);
         moduleManager.loadModules();
         if (getModuleManager().getModules().length > 0) {
             Main.getInstance().getConsole().sendMessage(ColorManager.translate("&e › &f" + getModuleManager().getModules().length + "&f module(s) loaded!"));
